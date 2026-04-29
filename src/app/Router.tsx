@@ -10,6 +10,7 @@ import { AppShell } from '@/shared/components/layout/AppShell';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/stores/authStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { hasPermission, Permission } from '@/features/auth/types';
 
 const LoginPage = React.lazy(() => import('@/features/auth/components/LoginPage'));
 const FirstRunSetup = React.lazy(() => import('@/features/auth/components/FirstRunSetup'));
@@ -25,6 +26,12 @@ const CustomersPage = React.lazy(
 );
 const CustomerDetailPage = React.lazy(
   () => import('@/features/customers/components/CustomerDetailPage'),
+);
+const SettingsPage = React.lazy(
+  () => import('@/features/settings/components/SettingsPage'),
+);
+const ReportsPage = React.lazy(
+  () => import('@/features/reports/components/ReportsPage'),
 );
 
 function LoadingFallback(): React.ReactElement {
@@ -55,11 +62,15 @@ function AuthenticatedApp(): React.ReactElement {
           <Route path={ROUTES.CUSTOMER_DETAIL} element={<CustomerDetailPage />} />
           <Route
             path={ROUTES.REPORTS}
-            element={<div className="p-10 text-sm text-text-secondary">Reports — coming soon</div>}
+            element={<ReportsPage />}
           />
           <Route
             path={ROUTES.SETTINGS}
-            element={<div className="p-10 text-sm text-text-secondary">Settings — coming soon</div>}
+            element={
+              user && hasPermission(user.role, Permission.MANAGE_SETTINGS)
+                ? <SettingsPage />
+                : <Navigate to={ROUTES.DASHBOARD} replace />
+            }
           />
           <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
         </Routes>

@@ -1,1 +1,6 @@
-export type { SpaService, SpaServiceCategory, CreateSpaServiceDto } from './types';
+export type {
+  SpaService,
+  SpaServiceCategory,
+  CreateSpaServiceDto,
+  UpdateSpaServiceDto,
+} from './types';

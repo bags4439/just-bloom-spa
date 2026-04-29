@@ -7,9 +7,16 @@ import { SqliteExpenseQueryRepository } from '@/features/transactions/repositori
 import { SqliteDayClosureRepository } from '@/features/reports/repositories/SqliteDayClosureRepository';
 import { SqliteSpaServiceRepository } from '@/features/spa-services/repositories/SqliteSpaServiceRepository';
 import { SqliteCustomerRepository } from '@/features/customers/repositories/SqliteCustomerRepository';
+import { SqliteReportRepository } from '@/features/reports/repositories/SqliteReportRepository';
+import { SqliteAuditLogRepository } from '@/features/settings/repositories/SqliteAuditLogRepository';
 import { DashboardService } from '@/features/reports/services/DashboardService';
 import { TransactionService } from '@/features/transactions/services/TransactionService';
 import { CustomerService } from '@/features/customers/services/CustomerService';
+import { SpaServiceService } from '@/features/spa-services/services/SpaServiceService';
+import { StaffService } from '@/features/staff/services/StaffService';
+import { SettingsService } from '@/features/settings/services/SettingsService';
+import { ReportService } from '@/features/reports/services/ReportService';
+import { AuditLogService } from '@/features/settings/services/AuditLogService';
 import { AuditService } from './services/AuditService';
 import { AuthService } from './services/AuthService';
 import { SessionService } from './services/SessionService';
@@ -23,6 +30,11 @@ export class ServiceContainer {
   public readonly dashboardService: DashboardService;
   public readonly transactionService: TransactionService;
   public readonly customerService: CustomerService;
+  public readonly spaServiceService: SpaServiceService;
+  public readonly staffService: StaffService;
+  public readonly settingsService: SettingsService;
+  public readonly reportService: ReportService;
+  public readonly auditLogService: AuditLogService;
   public readonly spaServiceRepo: SqliteSpaServiceRepository;
   public readonly customerRepo: SqliteCustomerRepository;
   public readonly transactionQueryRepo: SqliteTransactionQueryRepository;
@@ -38,6 +50,8 @@ export class ServiceContainer {
     const customerRepo = new SqliteCustomerRepository(db);
     const otherIncomeRepo = new SqliteOtherIncomeRepository(db);
     const expenseQueryRepo = new SqliteExpenseQueryRepository(db);
+    const reportRepo = new SqliteReportRepository(db);
+    const auditLogRepo = new SqliteAuditLogRepository(db);
 
     this.auditService = new AuditService(db);
     this.authService = new AuthService(userRepo, this.auditService);
@@ -56,6 +70,11 @@ export class ServiceContainer {
       otherIncomeRepo,
     );
     this.customerService = new CustomerService(customerRepo, this.auditService);
+    this.spaServiceService = new SpaServiceService(spaServiceRepo, this.auditService);
+    this.staffService = new StaffService(userRepo, this.auditService);
+    this.settingsService = new SettingsService(db);
+    this.reportService = new ReportService(reportRepo);
+    this.auditLogService = new AuditLogService(auditLogRepo);
     this.spaServiceRepo = spaServiceRepo;
     this.customerRepo = customerRepo;
     this.transactionQueryRepo = transactionQueryRepo;

@@ -26,3 +26,10 @@ export interface CreateSpaServiceDto {
   pricePesewas: number;
   createdBy: string;
 }
+
+export interface UpdateSpaServiceDto {
+  name: string;
+  description: string | null;
+  pricePesewas: number;
+  categoryId: string;
+}

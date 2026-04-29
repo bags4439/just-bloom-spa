@@ -15,5 +15,21 @@ export const DEFAULT_APP_CONFIG = {
   receiptInstagram: '@justbloomspa',
 } as const;
 
-export type AppConfig = typeof DEFAULT_APP_CONFIG;
+export interface AppConfig {
+  sessionTimeoutMinutes: number;
+  sessionWarningMinutes: number;
+  loyaltyPointsPerGhs: number;
+  loyaltyRedemptionRate: number;
+  loyaltyRedemptionValue: number;
+  voidWindowMinutes: number;
+  currency: string;
+  currencyLocale: string;
+  dateLocale: string;
+  receiptSpaName: string;
+  receiptTagline: string;
+  receiptAddress: string;
+  receiptPhone: string;
+  receiptInstagram: string;
+}
+
 export type AppConfigKey = keyof AppConfig;
