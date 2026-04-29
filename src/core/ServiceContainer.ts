@@ -9,6 +9,7 @@ import { SqliteSpaServiceRepository } from '@/features/spa-services/repositories
 import { SqliteCustomerRepository } from '@/features/customers/repositories/SqliteCustomerRepository';
 import { DashboardService } from '@/features/reports/services/DashboardService';
 import { TransactionService } from '@/features/transactions/services/TransactionService';
+import { CustomerService } from '@/features/customers/services/CustomerService';
 import { AuditService } from './services/AuditService';
 import { AuthService } from './services/AuthService';
 import { SessionService } from './services/SessionService';
@@ -21,6 +22,7 @@ export class ServiceContainer {
   public readonly sessionService: SessionService;
   public readonly dashboardService: DashboardService;
   public readonly transactionService: TransactionService;
+  public readonly customerService: CustomerService;
   public readonly spaServiceRepo: SqliteSpaServiceRepository;
   public readonly customerRepo: SqliteCustomerRepository;
   public readonly transactionQueryRepo: SqliteTransactionQueryRepository;
@@ -53,6 +55,7 @@ export class ServiceContainer {
       transactionQueryRepo,
       otherIncomeRepo,
     );
+    this.customerService = new CustomerService(customerRepo, this.auditService);
     this.spaServiceRepo = spaServiceRepo;
     this.customerRepo = customerRepo;
     this.transactionQueryRepo = transactionQueryRepo;

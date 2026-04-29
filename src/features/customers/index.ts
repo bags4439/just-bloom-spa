@@ -1,1 +1,6 @@
-export type { Customer, CreateCustomerDto } from './types';
+export type {
+  Customer,
+  CustomerWithStats,
+  CreateCustomerDto,
+  UpdateCustomerDto,
+} from './types';

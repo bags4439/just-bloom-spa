@@ -14,4 +14,5 @@ export interface ITransactionQueryRepository {
   getRecent(limit: number): Promise<TransactionSummary[]>;
   getAll(filters: TransactionFilters): Promise<TransactionSummary[]>;
   getById(id: string): Promise<TransactionDetail | null>;
+  getByCustomerId(customerId: string, limit: number): Promise<TransactionSummary[]>;
 }

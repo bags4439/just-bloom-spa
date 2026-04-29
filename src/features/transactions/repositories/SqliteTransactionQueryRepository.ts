@@ -273,6 +273,38 @@ export class SqliteTransactionQueryRepository
     };
   }
 
+  async getByCustomerId(
+    customerId: string,
+    limit: number,
+  ): Promise<TransactionSummary[]> {
+    const rows = this.selectAll(
+      `SELECT
+         t.id,
+         t.ts,
+         t.ts_is_manual,
+         COALESCE(c.name, 'Walk-in') AS customer_name,
+         t.net_pesewas,
+         CASE WHEN t.voided_at IS NOT NULL THEN 'voided' ELSE 'complete' END AS status,
+         u.name AS staff_name,
+         (SELECT GROUP_CONCAT(s2.name, ', ')
+          FROM transaction_items ti2
+          JOIN services s2 ON s2.id = ti2.service_id
+          WHERE ti2.transaction_id = t.id) AS service_names,
+         (SELECT channel
+          FROM transaction_payments
+          WHERE transaction_id = t.id
+          ORDER BY rowid LIMIT 1) AS primary_channel
+       FROM transactions t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       JOIN users u ON u.id = t.staff_id
+       WHERE t.customer_id = ? AND t.type = 'sale'
+       ORDER BY t.ts DESC
+       LIMIT ?`,
+      [customerId, limit],
+    );
+    return rows.map((row) => this.mapSummaryRow(row));
+  }
+
   private mapSummaryRow(row: SqlValue[]): TransactionSummary {
     const serviceNamesRaw = this.toNullableString(row[7]);
     const channelRaw = this.toNullableString(row[8]);

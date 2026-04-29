@@ -20,6 +20,12 @@ const NewTransactionPage = React.lazy(
 const TransactionsPage = React.lazy(
   () => import('@/features/transactions/components/TransactionsPage'),
 );
+const CustomersPage = React.lazy(
+  () => import('@/features/customers/components/CustomersPage'),
+);
+const CustomerDetailPage = React.lazy(
+  () => import('@/features/customers/components/CustomerDetailPage'),
+);
 
 function LoadingFallback(): React.ReactElement {
   return (
@@ -45,10 +51,8 @@ function AuthenticatedApp(): React.ReactElement {
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.NEW_TRANSACTION} element={<NewTransactionPage />} />
           <Route path={ROUTES.TRANSACTIONS} element={<TransactionsPage />} />
-          <Route
-            path={ROUTES.CUSTOMERS}
-            element={<div className="p-10 text-sm text-text-secondary">Customers — coming soon</div>}
-          />
+          <Route path={ROUTES.CUSTOMERS} element={<CustomersPage />} />
+          <Route path={ROUTES.CUSTOMER_DETAIL} element={<CustomerDetailPage />} />
           <Route
             path={ROUTES.REPORTS}
             element={<div className="p-10 text-sm text-text-secondary">Reports — coming soon</div>}
