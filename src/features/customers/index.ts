@@ -1,2 +1,1 @@
-// Customers feature public API
-export type {} from './types';
+export type { Customer, CreateCustomerDto } from './types';

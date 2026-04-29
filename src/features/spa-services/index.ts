@@ -1,2 +1,1 @@
-// Spa services feature public API
-export type {} from './types';
+export type { SpaService, SpaServiceCategory, CreateSpaServiceDto } from './types';

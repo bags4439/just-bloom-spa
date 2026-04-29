@@ -17,6 +17,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@sqlite.org/sqlite-wasm": "^3.41.2",
+    "@types/react-is": "^19.2.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.12.0",

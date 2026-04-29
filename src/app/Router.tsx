@@ -14,6 +14,9 @@ import { useSessionStore } from '@/stores/sessionStore';
 const LoginPage = React.lazy(() => import('@/features/auth/components/LoginPage'));
 const FirstRunSetup = React.lazy(() => import('@/features/auth/components/FirstRunSetup'));
 const DashboardPage = React.lazy(() => import('@/features/reports/components/DashboardPage'));
+const NewTransactionPage = React.lazy(
+  () => import('@/features/transactions/components/NewTransactionPage'),
+);
 
 function LoadingFallback(): React.ReactElement {
   return (
@@ -37,12 +40,7 @@ function AuthenticatedApp(): React.ReactElement {
       <AppShell>
         <Routes>
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-          <Route
-            path={ROUTES.NEW_TRANSACTION}
-            element={
-              <div className="p-10 text-sm text-text-secondary">New transaction — coming soon</div>
-            }
-          />
+          <Route path={ROUTES.NEW_TRANSACTION} element={<NewTransactionPage />} />
           <Route
             path={ROUTES.TRANSACTIONS}
             element={<div className="p-10 text-sm text-text-secondary">Transactions — coming soon</div>}
