@@ -1,0 +1,742 @@
+# Just Bloom Spa — Cursor Rules
+# These rules govern every file generated or edited in this codebase.
+# Read this entire file before writing any code.
+
+---
+
+## 1. Project Overview
+
+Just Bloom Spa is a **100% offline, desktop-first Progressive Web App (PWA)** for managing a single-location spa in Accra, Ghana. It handles transactions, customers, staff, reporting, and end-of-day reconciliation. Data is stored locally using **SQLite WASM** persisted to the **Origin Private File System (OPFS)**. There is no backend server, no cloud sync, and no external API calls (except CDN assets on first load).
+
+**Brand:** Just Bloom Spa · Deep forest green · Warm cream · Gold accents · Lotus motif  
+**Currency:** GHS (Ghanaian Cedi)  
+**Users:** Staff, Manager, Owner (3-tier role hierarchy)
+
+---
+
+## 2. Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + TypeScript (strict) |
+| Build tool | Vite |
+| PWA | vite-plugin-pwa + Workbox |
+| Styling | Tailwind CSS v3 + custom design tokens |
+| Components | shadcn/ui (customised to brand) |
+| State | Zustand |
+| Forms | React Hook Form + Zod |
+| Charts | Recharts |
+| Routing | React Router v6 |
+| Database | @sqlite.org/sqlite-wasm (OPFS persistence) |
+| Auth | bcryptjs (in-browser password hashing) |
+| Print | react-to-print |
+| Linting | ESLint + Prettier |
+| Testing | Vitest + React Testing Library |
+
+---
+
+## 3. Architecture Principles
+
+### 3.1 SOLID — enforced at every layer
+
+**Single Responsibility Principle**
+- Every file exports exactly one primary concern.
+- A component renders UI only — no business logic, no direct DB calls.
+- A service handles business logic only — no UI concerns, no direct store mutations.
+- A repository handles data access only — no business logic.
+- A hook composes one logical behaviour — not a kitchen-sink utility.
+
+**Open/Closed Principle**
+- Extend functionality via new modules, not by modifying existing ones.
+- Use TypeScript interfaces as extension points. Implementations are closed to modification.
+- Add new report types by implementing `IReport`, not by editing `ReportService`.
+
+**Liskov Substitution Principle**
+- Any class implementing an interface must fully honour the contract.
+- Never throw in a method that the interface promises will return a value.
+- Repository implementations must be interchangeable.
+
+**Interface Segregation Principle**
+- Prefer many small, focused interfaces over one large one.
+- A `CustomerRepository` interface must not include methods only relevant to `TransactionRepository`.
+- Props interfaces must be split when a component is used in multiple contexts.
+
+**Dependency Inversion Principle**
+- High-level modules (services) depend on interfaces, not concrete implementations.
+- Inject dependencies via constructor or React context — never import concrete classes directly into services.
+- Example: `TransactionService` depends on `ITransactionRepository`, not `SqliteTransactionRepository`.
+
+### 3.2 Additional architecture standards
+
+- **Clean Architecture layers:** UI → State → Service → Repository → Database. Each layer may only call the layer directly below it.
+- **Feature isolation:** Features must not import directly from other features. Cross-feature communication goes through shared stores or shared services.
+- **Pure functions first:** Default to pure, side-effect-free functions. Side effects are isolated to services, stores, and hooks.
+- **Immutability:** Never mutate objects or arrays in place. Always return new copies.
+- **Fail fast:** Validate inputs at the boundary (form layer + Zod). Never pass invalid data into a service.
+
+---
+
+## 4. Mandatory Folder Structure
+
+```
+just-bloom-spa/
+├── public/
+│   ├── icons/                  # PWA icons
+│   └── manifest.webmanifest
+├── src/
+│   ├── config/                 # ★ SINGLE SOURCE OF TRUTH ★
+│   │   ├── brand.ts            # All design tokens: colors, fonts, spacing, radii
+│   │   ├── app.config.ts       # Runtime config: session timeout, loyalty rate, etc.
+│   │   └── routes.ts           # All route path constants
+│   │
+│   ├── core/                   # Cross-cutting infrastructure
+│   │   ├── database/
+│   │   │   ├── connection.ts   # SQLite WASM init + OPFS setup
+│   │   │   ├── schema.ts       # Table definitions (single source)
+│   │   │   └── migrations/     # Numbered migration files: 001_init.sql, etc.
+│   │   ├── repositories/
+│   │   │   └── BaseRepository.ts   # Abstract base with shared helpers
+│   │   └── services/
+│   │       ├── AuditService.ts     # Logs every user action
+│   │       ├── AuthService.ts      # Login, logout, password hashing
+│   │       └── SessionService.ts   # Session timeout management
+│   │
+│   ├── features/               # Feature-slice architecture
+│   │   ├── auth/
+│   │   │   ├── components/     # LoginForm, PasswordResetForm, etc.
+│   │   │   ├── hooks/          # useAuth, usePasswordChange
+│   │   │   ├── stores/         # authStore.ts (Zustand)
+│   │   │   ├── types/          # AuthUser, UserRole, LoginCredentials
+│   │   │   └── index.ts        # Public API — only export what other features need
+│   │   ├── transactions/
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── repositories/   # ITransactionRepository + SqliteTransactionRepository
+│   │   │   ├── services/       # TransactionService
+│   │   │   ├── types/
+│   │   │   └── index.ts
+│   │   ├── customers/
+│   │   ├── reports/
+│   │   ├── spa-services/       # Spa service catalog (not app services)
+│   │   ├── staff/
+│   │   └── settings/
+│   │
+│   ├── shared/                 # Shared across all features
+│   │   ├── components/
+│   │   │   ├── ui/             # Button, Input, Card, Badge, Modal, Table, etc.
+│   │   │   └── layout/         # AppShell, Sidebar, PageHeader, Receipt
+│   │   ├── hooks/              # useLocalStorage, usePrint, useDebounce
+│   │   ├── types/              # Shared TypeScript types and interfaces
+│   │   └── utils/              # Pure utility functions (formatCurrency, formatDate)
+│   │
+│   ├── stores/                 # Global Zustand stores (cross-feature state)
+│   │   ├── authStore.ts
+│   │   ├── sessionStore.ts
+│   │   └── uiStore.ts          # Sidebar open/close, active screen, toasts
+│   │
+│   └── app/
+│       ├── App.tsx
+│       ├── Router.tsx
+│       └── Providers.tsx       # Wraps app with all providers
+│
+├── .cursorrules                # This file
+├── .eslintrc.cjs
+├── .prettierrc
+├── tailwind.config.ts
+├── tsconfig.json
+├── vite.config.ts
+└── vitest.config.ts
+```
+
+**Enforcement rules:**
+- Features must NEVER import from `../other-feature/` directly. Use `shared/` or a store.
+- `config/brand.ts` is the ONLY place where colour values, font names, spacing values, and border radii are defined. No hardcoded hex values elsewhere.
+- Every feature must have an `index.ts` barrel file that controls its public API.
+- Database access is ONLY permitted inside `repositories/`. Services call repositories, never the DB directly.
+
+---
+
+## 5. Configuration — Single Source of Truth
+
+### src/config/brand.ts
+This is the authoritative source for ALL visual design tokens.
+No component, style, or Tailwind config may hardcode values that belong here.
+
+```typescript
+// src/config/brand.ts
+export const brand = {
+  colors: {
+    primary: '#1D4D35',       // Deep forest green
+    primaryDark: '#142E20',   // Sidebar background
+    primaryLight: '#2A6B4A',  // Hover states
+    primaryPale: '#E4F0E9',   // Light green tint
+    accent: '#C4962A',        // Gold
+    accentLight: '#F5E9C8',   // Gold tint
+    cream: '#FAF6EE',         // Page background
+    creamDark: '#F0E9DA',     // Input backgrounds
+    surface: '#FFFFFF',       // Card backgrounds
+    border: '#DDE8E2',        // Default border
+    text: {
+      primary: '#1A2920',
+      secondary: '#5A7060',
+      tertiary: '#8A9E90',
+    },
+    status: {
+      success: '#15803D',
+      successBg: '#F0FDF4',
+      danger: '#B91C1C',
+      dangerBg: '#FEF2F2',
+      warning: '#B45309',
+      warningBg: '#FFFBEB',
+    },
+    channel: {
+      cash: { bg: '#E4F0E9', text: '#1D4D35' },
+      momo: { bg: '#FFF3E0', text: '#C45600' },
+      bank: { bg: '#EFF6FF', text: '#1D4ED8' },
+      split: { bg: '#F5F3FF', text: '#6D28D9' },
+    },
+  },
+  fonts: {
+    sans: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    mono: "'JetBrains Mono', 'Fira Code', monospace",
+  },
+  radii: {
+    sm: '4px',
+    md: '8px',
+    lg: '12px',
+    xl: '16px',
+    full: '9999px',
+  },
+  spacing: {
+    pagePadding: '36px 40px',
+    cardPadding: '20px 24px',
+    sidebarWidth: '216px',
+  },
+  shadows: {
+    card: '0 1px 3px rgba(29, 77, 53, 0.06)',
+    modal: '0 8px 32px rgba(29, 77, 53, 0.12)',
+  },
+  transition: {
+    default: '150ms ease',
+    slow: '300ms ease',
+  },
+} as const;
+
+export type BrandColors = typeof brand.colors;
+```
+
+### src/config/app.config.ts
+All runtime-configurable values — must be editable from the Settings screen.
+
+```typescript
+// src/config/app.config.ts
+export const DEFAULT_APP_CONFIG = {
+  sessionTimeoutMinutes: 15,
+  sessionWarningMinutes: 2,
+  loyaltyPointsPerGhs: 10,       // 1 point per GHS 10
+  loyaltyRedemptionValue: 10,    // 100 points = GHS 10
+  voidWindowMinutes: 5,          // Staff can void within 5 min
+  currency: 'GHS',
+  currencyLocale: 'en-GH',
+  dateLocale: 'en-GB',           // DD/MM/YYYY
+  receiptSpaName: 'Just Bloom Spa',
+  receiptFooter: 'Rest. Reset. Glow.',
+  receiptAddress: 'Adenta – Rowi Junction, Accra, Ghana',
+  receiptPhone: '024 011 3992',
+} as const;
+
+export type AppConfig = typeof DEFAULT_APP_CONFIG;
+```
+
+### tailwind.config.ts
+Must import from `brand.ts` — never duplicate values.
+
+```typescript
+import { brand } from './src/config/brand';
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: brand.colors.primary,
+        'primary-dark': brand.colors.primaryDark,
+        // ... map all brand colors to Tailwind tokens
+      },
+      fontFamily: {
+        sans: brand.fonts.sans.split(','),
+      },
+      borderRadius: brand.radii,
+    },
+  },
+};
+```
+
+---
+
+## 6. TypeScript Standards
+
+- **Strict mode is mandatory.** `tsconfig.json` must have `"strict": true`. No exceptions.
+- **No `any`.** Use `unknown` and narrow with type guards. If you must escape, use `// @ts-expect-error` with a comment explaining why.
+- **Prefer `interface` over `type`** for object shapes that may be extended. Use `type` for unions, intersections, and primitives.
+- **All function parameters and return types must be explicitly typed** when not trivially inferred.
+- **Use `const` assertions** (`as const`) for configuration objects and lookup maps.
+- **Enums are banned.** Use `const` objects with `keyof typeof` patterns instead.
+- **Never use non-null assertion** (`!`) without a comment explaining the guarantee.
+- **`readonly` everywhere reasonable** — function parameters that shouldn't be mutated, interface properties on value objects.
+- **Discriminated unions** for state machines (e.g. transaction steps, async states).
+
+```typescript
+// ✅ Correct
+interface CustomerProfile {
+  readonly id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  loyaltyPoints: number;
+}
+
+// ✅ Correct role pattern (no enum)
+export const UserRole = {
+  STAFF: 'staff',
+  MANAGER: 'manager',
+  OWNER: 'owner',
+} as const;
+export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+// ✅ Correct discriminated union
+type AsyncState<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+```
+
+---
+
+## 7. React Component Standards
+
+- **Functional components only.** No class components.
+- **One component per file.** Small helper sub-components may co-locate if they are not reused.
+- **Props interfaces are defined in the same file**, named `[ComponentName]Props`.
+- **Never pass raw objects as props** across re-renders without memoisation. Use `useMemo` or stable references.
+- **No inline arrow functions in JSX** for event handlers in list renders — extract to named handlers.
+- **Avoid prop drilling beyond 2 levels.** Use context, Zustand, or composition instead.
+- **`children` prop must be typed** — use `React.ReactNode`.
+- **Component files are PascalCase.** Hook files are `useCamelCase.ts`. Utility files are `camelCase.ts`.
+- **`React.memo` by default** for components that receive stable props and are expensive to re-render.
+- **`useCallback` and `useMemo`** whenever a function or value is passed as a prop or used as a dependency.
+
+```typescript
+// ✅ Correct component pattern
+interface TransactionRowProps {
+  readonly transaction: Transaction;
+  readonly onVoid: (id: string) => void;
+}
+
+const TransactionRow = React.memo<TransactionRowProps>(({ transaction, onVoid }) => {
+  const handleVoid = useCallback(() => onVoid(transaction.id), [transaction.id, onVoid]);
+
+  return (
+    <tr>
+      <td>{transaction.id}</td>
+      {/* ... */}
+      <button onClick={handleVoid}>Void</button>
+    </tr>
+  );
+});
+TransactionRow.displayName = 'TransactionRow';
+```
+
+---
+
+## 8. Naming Conventions
+
+| Thing | Convention | Example |
+|---|---|---|
+| Component files | PascalCase | `TransactionRow.tsx` |
+| Hook files | camelCase prefixed `use` | `useTransaction.ts` |
+| Service files | PascalCase + `Service` | `TransactionService.ts` |
+| Repository files | PascalCase + `Repository` | `SqliteTransactionRepository.ts` |
+| Store files | camelCase + `Store` | `transactionStore.ts` |
+| Type files | camelCase | `transaction.types.ts` |
+| Utility files | camelCase | `formatCurrency.ts` |
+| Constants | `SCREAMING_SNAKE_CASE` | `MAX_VOID_WINDOW_MS` |
+| Zod schemas | camelCase + `Schema` | `transactionSchema` |
+| React contexts | PascalCase + `Context` | `AppConfigContext` |
+| Boolean props/vars | prefixed `is`, `has`, `can`, `should` | `isLoading`, `hasPermission` |
+| Event handlers | prefixed `handle` | `handleSubmit`, `handleVoid` |
+| Event prop names | prefixed `on` | `onSubmit`, `onVoid` |
+
+---
+
+## 9. State Management (Zustand)
+
+- **Zustand stores are lean.** They hold UI state and derived server state. They do NOT hold raw database records unless needed for cross-component access.
+- **One store per domain concern.** Do not create a single global store.
+- **Actions are co-located in the store** — not separate files.
+- **Async actions use try/catch** and update loading/error state explicitly.
+- **Selectors are defined outside the component** to prevent recreation on every render.
+- **Never mutate state directly.** Use Immer middleware if deep updates are needed.
+
+```typescript
+// ✅ Correct store pattern
+interface AuthState {
+  user: AuthUser | null;
+  isLoading: boolean;
+  error: string | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => void;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isLoading: false,
+  error: null,
+  login: async (credentials) => {
+    set({ isLoading: true, error: null });
+    try {
+      const user = await AuthService.login(credentials);
+      set({ user, isLoading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Login failed', isLoading: false });
+    }
+  },
+  logout: () => set({ user: null }),
+  clearError: () => set({ error: null }),
+}));
+
+// ✅ Correct selector usage (outside component)
+const selectUser = (state: AuthState) => state.user;
+const user = useAuthStore(selectUser);
+```
+
+---
+
+## 10. Repository Pattern
+
+Every database table must have a corresponding repository. Services only call repositories.
+
+```typescript
+// ✅ Interface (in feature/types or core/repositories)
+interface ICustomerRepository {
+  findById(id: string): Promise<Customer | null>;
+  findAll(): Promise<Customer[]>;
+  search(query: string): Promise<Customer[]>;
+  create(data: CreateCustomerDto): Promise<Customer>;
+  update(id: string, data: UpdateCustomerDto): Promise<Customer>;
+  softDelete(id: string): Promise<void>;
+}
+
+// ✅ Implementation (in feature/repositories)
+class SqliteCustomerRepository implements ICustomerRepository {
+  constructor(private readonly db: Database) {}
+
+  async findById(id: string): Promise<Customer | null> {
+    const result = this.db.exec('SELECT * FROM customers WHERE id = ?', [id]);
+    return result.length ? mapRowToCustomer(result[0]) : null;
+  }
+  // ...
+}
+```
+
+---
+
+## 11. Service Layer
+
+- Services receive repository instances via their constructor (Dependency Inversion).
+- Services orchestrate business logic — they may call multiple repositories.
+- Services MUST call `AuditService.log()` for every mutation.
+- Services validate business rules (e.g. void window, balance checks) — not the UI.
+- Services throw typed errors — never raw strings.
+
+```typescript
+// ✅ Correct service pattern
+class TransactionService {
+  constructor(
+    private readonly transactionRepo: ITransactionRepository,
+    private readonly loyaltyRepo: ILoyaltyRepository,
+    private readonly auditService: AuditService,
+  ) {}
+
+  async voidTransaction(
+    transactionId: string,
+    reason: string,
+    actorId: string,
+  ): Promise<void> {
+    const transaction = await this.transactionRepo.findById(transactionId);
+    if (!transaction) throw new TransactionNotFoundError(transactionId);
+
+    const ageMs = Date.now() - transaction.createdAt.getTime();
+    const windowMs = APP_CONFIG.voidWindowMinutes * 60 * 1000;
+    if (ageMs > windowMs) throw new VoidWindowExpiredError();
+
+    await this.transactionRepo.void(transactionId, reason);
+    if (transaction.customerId) {
+      await this.loyaltyRepo.reversePoints(transactionId);
+    }
+
+    await this.auditService.log({
+      actorId,
+      action: 'TRANSACTION_VOIDED',
+      entityType: 'transaction',
+      entityId: transactionId,
+      metadata: { reason },
+    });
+  }
+}
+```
+
+---
+
+## 12. Error Handling
+
+- **Typed errors only.** Create domain-specific error classes that extend `Error`.
+- **Never swallow errors silently.** All catch blocks must either re-throw, log to audit, or display to user.
+- **User-facing errors must be human-readable** — no raw stack traces, no error codes.
+- **Async operations in components use `AsyncState<T>` discriminated unions** — not boolean `isLoading` + nullable `data`.
+- **Forms use Zod for validation** — never manual `if` chains.
+
+```typescript
+// ✅ Typed error classes (in shared/types/errors.ts)
+export class AppError extends Error {
+  constructor(message: string, public readonly code: string) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+export class TransactionNotFoundError extends AppError {
+  constructor(id: string) {
+    super(`Transaction ${id} not found`, 'TRANSACTION_NOT_FOUND');
+  }
+}
+export class VoidWindowExpiredError extends AppError {
+  constructor() {
+    super('This transaction can no longer be voided', 'VOID_WINDOW_EXPIRED');
+  }
+}
+export class InsufficientPermissionError extends AppError {
+  constructor(action: string) {
+    super(`You do not have permission to ${action}`, 'INSUFFICIENT_PERMISSION');
+  }
+}
+```
+
+---
+
+## 13. Form Standards
+
+- **All forms use React Hook Form + Zod.** No uncontrolled inputs without `register`.
+- **Zod schemas are defined in the feature's `types/` folder**, co-located with the form.
+- **Validation is schema-driven** — never add business validation inside `onSubmit`.
+- **Every input must have an accessible `label`** — no placeholder-only inputs.
+- **Submit buttons are disabled during submission.** Never allow double-submit.
+
+```typescript
+// ✅ Correct form pattern
+const createTransactionSchema = z.object({
+  customerId: z.string().uuid().optional(),
+  serviceIds: z.array(z.string().uuid()).min(1, 'Select at least one service'),
+  paymentChannel: z.enum(['cash', 'momo', 'bank', 'split']),
+  referenceNumber: z.string().optional(),
+  amountPaid: z.number().positive('Enter the amount paid'),
+  discount: z.number().min(0).optional(),
+  notes: z.string().max(500).optional(),
+  timestamp: z.date(),
+  isTimestampManual: z.boolean(),
+});
+
+type CreateTransactionFormData = z.infer<typeof createTransactionSchema>;
+```
+
+---
+
+## 14. Audit Logging
+
+**Every mutation in the application must be logged.** This is non-negotiable.
+
+Audit log entries must capture:
+- `id` — UUID
+- `actorId` — who performed the action
+- `sessionId` — current session identifier
+- `action` — screaming snake case verb (`TRANSACTION_CREATED`, `STAFF_DISABLED`, etc.)
+- `entityType` — the affected table/domain
+- `entityId` — the affected record
+- `oldValue` — JSON snapshot before change (for updates/deletes)
+- `newValue` — JSON snapshot after change (for creates/updates)
+- `metadata` — any extra context (void reason, manual timestamp flag, etc.)
+- `createdAt` — timestamp
+
+Auth events (`LOGIN`, `LOGOUT`, `LOGIN_FAILED`, `PASSWORD_CHANGED`, `SESSION_TIMEOUT`) are also logged.
+
+The audit log table must be append-only — no UPDATE or DELETE on it, ever.
+
+---
+
+## 15. Security
+
+- **Passwords are hashed with bcryptjs** (cost factor 12) before storing. Never store plain text.
+- **Session state lives in memory only** — no localStorage, no sessionStorage for sensitive data.
+- **Role-based access is enforced at the service layer**, not just the UI. UI guards are supplementary.
+- **Sensitive data is never logged** — passwords, raw payment references are excluded from audit metadata.
+- **All user inputs are validated via Zod** before reaching the service layer.
+- **The Owner is the only role that can export or restore data.**
+- **Session timeout locks the screen** — it does not log the user out. Re-authentication with password required.
+
+```typescript
+// ✅ Permission guard pattern
+export function requirePermission(
+  user: AuthUser,
+  permission: Permission,
+): void {
+  if (!hasPermission(user.role, permission)) {
+    throw new InsufficientPermissionError(permission);
+  }
+}
+
+// Usage in service
+async createStaffAccount(data: CreateStaffDto, actor: AuthUser): Promise<Staff> {
+  requirePermission(actor, Permission.MANAGE_STAFF);
+  // ...
+}
+```
+
+---
+
+## 16. Database Standards
+
+- **All SQL is parameterised.** No string interpolation in queries.
+- **Schema is defined in `core/database/schema.ts`** as a single source of truth.
+- **Migrations are numbered and append-only** (`001_init.sql`, `002_add_loyalty_ledger.sql`). Never modify a past migration.
+- **UUIDs are used for all primary keys**, generated with `crypto.randomUUID()`.
+- **Soft deletes only** — no hard deletes on user, customer, or service records. Add `deleted_at TIMESTAMP`.
+- **All money values stored as integers (pence/pesewas)** to avoid floating-point errors. Divide by 100 on display.
+- **Timestamps stored as ISO 8601 strings** in UTC. Converted to local time at the display layer.
+- **`created_at` and `updated_at`** on every table.
+- **The `audit_logs` table never receives UPDATE or DELETE statements.**
+
+---
+
+## 17. Styling Standards
+
+- **Tailwind utility classes are the primary styling mechanism.**
+- **All colour values come from Tailwind tokens** which are sourced from `src/config/brand.ts`. Never hardcode a hex value in a component.
+- **Custom CSS is only used** for things Tailwind cannot express (e.g. custom scrollbars, print styles).
+- **`cn()` helper** (clsx + tailwind-merge) is used whenever class names are conditional.
+- **Responsive design is desktop-first** — this app targets laptops. Mobile breakpoints are not required.
+- **Spacing uses Tailwind's scale.** Do not add arbitrary `[px]` values unless absolutely necessary.
+- **shadcn/ui components are customised via `src/config/brand.ts`** — not by editing the component source directly.
+
+```typescript
+// ✅ Correct — using cn() and Tailwind tokens
+import { cn } from '@/shared/utils/cn';
+
+interface ButtonProps {
+  variant?: 'primary' | 'outline' | 'ghost';
+  className?: string;
+}
+
+const Button: React.FC<ButtonProps> = ({ variant = 'primary', className, ...props }) => (
+  <button
+    className={cn(
+      'flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+      variant === 'primary' && 'bg-primary text-white hover:bg-primary-light',
+      variant === 'outline' && 'border border-border bg-white text-text-primary hover:bg-cream',
+      variant === 'ghost' && 'text-text-secondary hover:bg-cream',
+      className,
+    )}
+    {...props}
+  />
+);
+```
+
+---
+
+## 18. Performance Standards
+
+- **React.memo** on all list-item components (table rows, customer cards, service cards).
+- **useCallback** on all event handlers passed as props.
+- **useMemo** on all expensive computations (report aggregations, filtered lists).
+- **Virtualise long lists** (>50 rows) — use `@tanstack/react-virtual`.
+- **SQLite queries must be intentional** — no N+1 queries. Use JOINs.
+- **Report queries run in a Web Worker** (future) — design service interfaces to support this.
+- **Lazy-load feature modules** via `React.lazy` + `Suspense`. The dashboard must load fast.
+- **Images and icons are SVG or inline** — no heavy image assets.
+
+---
+
+## 19. Testing Standards
+
+- **Unit tests for all services and utilities.** Coverage target: 80%.
+- **Integration tests for all repositories** — test against an in-memory SQLite instance.
+- **Component tests with React Testing Library** — test behaviour, not implementation.
+- **No snapshot tests.** They are brittle and add no value.
+- **Test files co-locate with the source** — `TransactionService.test.ts` beside `TransactionService.ts`.
+- **Test naming:** `describe('[ClassName/FunctionName]') + it('[behaviour being tested]')`.
+
+```typescript
+// ✅ Correct test structure
+describe('TransactionService.voidTransaction', () => {
+  it('throws VoidWindowExpiredError when transaction is older than 5 minutes', async () => {
+    // ...
+  });
+  it('reverses loyalty points when transaction had a linked customer', async () => {
+    // ...
+  });
+  it('writes an audit log entry on successful void', async () => {
+    // ...
+  });
+});
+```
+
+---
+
+## 20. Import Conventions
+
+- **Absolute imports via path aliases.** Never use `../../` — use `@/features/transactions`.
+- **Barrel exports via `index.ts`** for every feature — import from the feature root, not deep paths.
+- **Import order (enforced by ESLint):**
+  1. React and React ecosystem
+  2. Third-party libraries
+  3. `@/config`
+  4. `@/core`
+  5. `@/shared`
+  6. `@/features`
+  7. Local imports (`./`)
+  8. Type-only imports (using `import type`)
+
+```typescript
+// ✅ Correct import order
+import React, { useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+
+import { brand } from '@/config/brand';
+import { AuditService } from '@/core/services/AuditService';
+import { cn } from '@/shared/utils/cn';
+import { Button } from '@/shared/components/ui/Button';
+import { useTransaction } from '@/features/transactions';
+
+import { TransactionRow } from './TransactionRow';
+import type { TransactionListProps } from './transaction.types';
+```
+
+---
+
+## 21. What Never to Do
+
+- ❌ Never hardcode a colour, font, or spacing value in a component.
+- ❌ Never call the database directly from a component or store.
+- ❌ Never import from another feature's internal files — only from its `index.ts`.
+- ❌ Never use `any` without a `@ts-expect-error` comment.
+- ❌ Never store passwords or session tokens in `localStorage` or `sessionStorage`.
+- ❌ Never update the audit log (no UPDATE/DELETE on `audit_logs`).
+- ❌ Never write business logic in a React component.
+- ❌ Never use `useEffect` for data fetching — use custom hooks with proper async state.
+- ❌ Never write a migration that modifies or deletes a previous migration file.
+- ❌ Never use `Math.random()` for IDs — use `crypto.randomUUID()`.
+- ❌ Never store money as a float — use integers (pesewas).
+- ❌ Never deploy changes that disable TypeScript strict mode.
+- ❌ Never add console.log in committed code — use a proper logger utility.
+- ❌ Never allow a form to submit without Zod validation.
+- ❌ Never add a new colour to the codebase without first adding it to `src/config/brand.ts`.

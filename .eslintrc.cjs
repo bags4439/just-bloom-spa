@@ -1,0 +1,46 @@
+module.exports = {
+  root: true,
+  env: { browser: true, es2022: true },
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended-type-checked',
+    'plugin:@typescript-eslint/stylistic-type-checked',
+    'plugin:react-hooks/recommended',
+    'prettier',
+  ],
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'vite.config.ts'],
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    project: ['./tsconfig.json', './tsconfig.node.json'],
+    tsconfigRootDir: __dirname,
+  },
+  plugins: ['@typescript-eslint', 'import'],
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/explicit-function-return-type': 'warn',
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+    'import/order': [
+      'error',
+      {
+        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'type'],
+        pathGroups: [
+          { pattern: 'react', group: 'external', position: 'before' },
+          { pattern: '@/config/**', group: 'internal', position: 'before' },
+          { pattern: '@/core/**', group: 'internal' },
+          { pattern: '@/shared/**', group: 'internal' },
+          { pattern: '@/features/**', group: 'internal' },
+          { pattern: '@/stores/**', group: 'internal' },
+          { pattern: '@/app/**', group: 'internal' },
+        ],
+        pathGroupsExcludedImportTypes: ['react'],
+        'newlines-between': 'always',
+        alphabetize: { order: 'asc', caseInsensitive: true },
+      },
+    ],
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+  },
+};
