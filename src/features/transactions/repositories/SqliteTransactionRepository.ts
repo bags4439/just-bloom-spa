@@ -101,4 +101,18 @@ export class SqliteTransactionRepository
       ],
     );
   }
+
+  async voidTransaction(
+    id: string,
+    reason: string,
+    voidedBy: string,
+  ): Promise<void> {
+    const now = this.nowIso();
+    this.run(
+      `UPDATE transactions
+       SET voided_at = ?, void_reason = ?, voided_by = ?, updated_at = ?
+       WHERE id = ? AND voided_at IS NULL`,
+      [now, reason, voidedBy, now, id],
+    );
+  }
 }

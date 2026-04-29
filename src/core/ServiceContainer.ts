@@ -2,6 +2,8 @@ import type { Database } from '@/shared/types';
 import { SqliteUserRepository } from '@/features/auth/repositories/SqliteUserRepository';
 import { SqliteTransactionQueryRepository } from '@/features/transactions/repositories/SqliteTransactionQueryRepository';
 import { SqliteTransactionRepository } from '@/features/transactions/repositories/SqliteTransactionRepository';
+import { SqliteOtherIncomeRepository } from '@/features/transactions/repositories/SqliteOtherIncomeRepository';
+import { SqliteExpenseQueryRepository } from '@/features/transactions/repositories/SqliteExpenseQueryRepository';
 import { SqliteDayClosureRepository } from '@/features/reports/repositories/SqliteDayClosureRepository';
 import { SqliteSpaServiceRepository } from '@/features/spa-services/repositories/SqliteSpaServiceRepository';
 import { SqliteCustomerRepository } from '@/features/customers/repositories/SqliteCustomerRepository';
@@ -21,6 +23,9 @@ export class ServiceContainer {
   public readonly transactionService: TransactionService;
   public readonly spaServiceRepo: SqliteSpaServiceRepository;
   public readonly customerRepo: SqliteCustomerRepository;
+  public readonly transactionQueryRepo: SqliteTransactionQueryRepository;
+  public readonly expenseQueryRepo: SqliteExpenseQueryRepository;
+  public readonly otherIncomeRepo: SqliteOtherIncomeRepository;
 
   private constructor(db: Database) {
     const userRepo = new SqliteUserRepository(db);
@@ -29,6 +34,8 @@ export class ServiceContainer {
     const dayClosureRepo = new SqliteDayClosureRepository(db);
     const spaServiceRepo = new SqliteSpaServiceRepository(db);
     const customerRepo = new SqliteCustomerRepository(db);
+    const otherIncomeRepo = new SqliteOtherIncomeRepository(db);
+    const expenseQueryRepo = new SqliteExpenseQueryRepository(db);
 
     this.auditService = new AuditService(db);
     this.authService = new AuthService(userRepo, this.auditService);
@@ -37,14 +44,20 @@ export class ServiceContainer {
       transactionQueryRepo,
       dayClosureRepo,
       this.auditService,
+      otherIncomeRepo,
     );
     this.transactionService = new TransactionService(
       transactionRepo,
       customerRepo,
       this.auditService,
+      transactionQueryRepo,
+      otherIncomeRepo,
     );
     this.spaServiceRepo = spaServiceRepo;
     this.customerRepo = customerRepo;
+    this.transactionQueryRepo = transactionQueryRepo;
+    this.expenseQueryRepo = expenseQueryRepo;
+    this.otherIncomeRepo = otherIncomeRepo;
   }
 
   static initialize(db: Database): ServiceContainer {

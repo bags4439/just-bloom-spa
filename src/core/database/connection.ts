@@ -1,18 +1,30 @@
 import type { Database } from '@/shared/types';
-import { SCHEMA_SQL, SCHEMA_VERSION, SEED_SQL } from './schema';
+import { SCHEMA_SQL, SCHEMA_VERSION, SEED_SQL, MIGRATIONS } from './schema';
 
 let dbInstance: Database | null = null;
 let initPromise: Promise<Database> | null = null;
 
 async function initialiseSchema(db: Database): Promise<void> {
+  // Create all tables (IF NOT EXISTS — safe to run on any database)
   db.exec(SCHEMA_SQL);
 
   const currentVersion =
     (db.selectValue('SELECT MAX(version) FROM schema_version') as number | null) ?? 0;
 
-  if (currentVersion < SCHEMA_VERSION) {
+  // Seed initial data on brand new database
+  if (currentVersion < 1) {
     db.exec(SEED_SQL);
-    db.exec('INSERT INTO schema_version (version) VALUES (?)', { bind: [SCHEMA_VERSION] });
+    db.exec('INSERT INTO schema_version (version) VALUES (?)', { bind: [1] });
+  }
+
+  // Run any pending versioned migrations
+  const startFrom = Math.max(currentVersion, 1);
+  for (let v = startFrom + 1; v <= SCHEMA_VERSION; v++) {
+    const migration = MIGRATIONS[v];
+    if (migration) {
+      db.exec(migration);
+      db.exec('INSERT INTO schema_version (version) VALUES (?)', { bind: [v] });
+    }
   }
 }
 

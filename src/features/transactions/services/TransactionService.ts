@@ -1,8 +1,14 @@
 import { DEFAULT_APP_CONFIG } from '@/config/app.config';
 import type { AuditService } from '@/core/services/AuditService';
+import { UserRole } from '@/features/auth/types';
 import type { ICustomerRepository } from '@/features/customers/repositories/ICustomerRepository';
+import { VoidWindowExpiredError, InsufficientPermissionError, NotFoundError } from '@/shared/types/errors';
+import type { AuthUser } from '@/features/auth/types';
+import type { IOtherIncomeRepository } from '../repositories/IOtherIncomeRepository';
+import type { ITransactionQueryRepository } from '../repositories/ITransactionQueryRepository';
 import type { ITransactionRepository, CreateExpenseDto } from '../repositories/ITransactionRepository';
 import type { SpaService } from '@/features/spa-services/types';
+import type { RecordOtherIncomeInput } from '../types';
 
 export interface RecordSaleInput {
   customerId: string | null;
@@ -46,6 +52,8 @@ export class TransactionService {
     private readonly transactionRepo: ITransactionRepository,
     private readonly customerRepo: ICustomerRepository,
     private readonly auditService: AuditService,
+    private readonly transactionQueryRepo: ITransactionQueryRepository,
+    private readonly otherIncomeRepo: IOtherIncomeRepository,
   ) {}
 
   async recordSale(input: RecordSaleInput): Promise<RecordedTransaction> {
@@ -139,6 +147,68 @@ export class TransactionService {
       sessionId: input.sessionId,
       action: 'EXPENSE_RECORDED',
       entityType: 'expense',
+      metadata: {
+        category: input.category,
+        amountPesewas: input.amountPesewas,
+        channel: input.paymentChannel,
+      },
+    });
+  }
+
+  async voidTransaction(
+    transactionId: string,
+    reason: string,
+    actor: AuthUser,
+    sessionId: string,
+  ): Promise<void> {
+    const transaction = await this.transactionQueryRepo.getById(transactionId);
+    if (!transaction) throw new NotFoundError('Transaction', transactionId);
+
+    if (transaction.status === 'voided') {
+      throw new Error('This transaction has already been voided');
+    }
+
+    if (actor.role === UserRole.STAFF) {
+      // Staff can only void their own transactions
+      if (transaction.staffName !== actor.name) {
+        throw new InsufficientPermissionError('void another staff member\'s transaction');
+      }
+      // Staff can only void within the configured window
+      const ageMs = Date.now() - new Date(transaction.timestamp).getTime();
+      const windowMs = DEFAULT_APP_CONFIG.voidWindowMinutes * 60 * 1000;
+      if (ageMs > windowMs) {
+        throw new VoidWindowExpiredError();
+      }
+    }
+
+    await this.transactionRepo.voidTransaction(transactionId, reason, actor.id);
+
+    this.auditService.log({
+      actorId: actor.id,
+      sessionId,
+      action: 'TRANSACTION_VOIDED',
+      entityType: 'transaction',
+      entityId: transactionId,
+      metadata: { reason },
+    });
+  }
+
+  async recordOtherIncome(input: RecordOtherIncomeInput): Promise<void> {
+    await this.otherIncomeRepo.create({
+      ts: input.timestamp.toISOString(),
+      staffId: input.staffId,
+      category: input.category,
+      amountPesewas: input.amountPesewas,
+      paymentChannel: input.paymentChannel,
+      referenceNo: input.referenceNo,
+      notes: input.notes,
+    });
+
+    this.auditService.log({
+      actorId: input.staffId,
+      sessionId: input.sessionId,
+      action: 'OTHER_INCOME_RECORDED',
+      entityType: 'other_income',
       metadata: {
         category: input.category,
         amountPesewas: input.amountPesewas,

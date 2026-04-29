@@ -28,4 +28,5 @@ export interface CreateExpenseDto {
 export interface ITransactionRepository {
   createSale(dto: CreateTransactionDto): Promise<void>;
   createExpense(dto: CreateExpenseDto): Promise<void>;
+  voidTransaction(id: string, reason: string, voidedBy: string): Promise<void>;
 }

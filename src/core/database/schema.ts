@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = `
   PRAGMA journal_mode = WAL;
@@ -117,6 +117,19 @@ export const SCHEMA_SQL = `
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS other_income (
+    id TEXT PRIMARY KEY,
+    ts TEXT NOT NULL,
+    staff_id TEXT NOT NULL REFERENCES users(id),
+    category TEXT NOT NULL,
+    amount_pesewas INTEGER NOT NULL,
+    payment_channel TEXT NOT NULL CHECK (payment_channel IN ('cash', 'momo', 'bank')),
+    reference_no TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS loyalty_ledger (
     id TEXT PRIMARY KEY,
     customer_id TEXT NOT NULL REFERENCES customers(id),
@@ -157,7 +170,8 @@ export const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_transactions_ts ON transactions(ts);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
-  CREATE INDEX IF NOT EXISTS idx_loyalty_ledger_customer ON loyalty_ledger(customer_id);
+  CREATE INDEX IF NOT EXISTS idx_other_income_ts ON other_income(ts);
+  CREATE INDEX IF NOT EXISTS idx_expenses_ts ON expenses(ts);
 `;
 
 export const SEED_SQL = `
@@ -167,3 +181,23 @@ export const SEED_SQL = `
     ('cat-nails', 'Nails', 'Nail care services', 3),
     ('cat-body', 'Body', 'Body treatments', 4);
 `;
+
+// Migrations keyed by version number.
+// Each migration runs only once when upgrading from a previous version.
+export const MIGRATIONS: Record<number, string> = {
+  2: `
+    CREATE TABLE IF NOT EXISTS other_income (
+      id TEXT PRIMARY KEY,
+      ts TEXT NOT NULL,
+      staff_id TEXT NOT NULL REFERENCES users(id),
+      category TEXT NOT NULL,
+      amount_pesewas INTEGER NOT NULL,
+      payment_channel TEXT NOT NULL CHECK (payment_channel IN ('cash', 'momo', 'bank')),
+      reference_no TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_other_income_ts ON other_income(ts);
+  `,
+};

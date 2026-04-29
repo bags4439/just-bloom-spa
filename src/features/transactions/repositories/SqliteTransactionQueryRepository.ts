@@ -1,6 +1,12 @@
 import { BaseRepository } from '@/core/repositories/BaseRepository';
 import type { Database, SqlValue } from '@/shared/types';
-import type { TransactionSummary, WeeklyRevenuePoint } from '../types';
+import type {
+  TransactionSummary,
+  WeeklyRevenuePoint,
+  TransactionDetail,
+  TransactionFilters,
+  TransactionPaymentDetail,
+} from '../types';
 import { PaymentChannel, TransactionStatus } from '../types';
 import type {
   DailyTransactionStats,
@@ -123,6 +129,148 @@ export class SqliteTransactionQueryRepository
     );
 
     return rows.map((row) => this.mapSummaryRow(row));
+  }
+
+  async getAll(filters: TransactionFilters): Promise<TransactionSummary[]> {
+    const conditions: string[] = ["t.type = 'sale'"];
+    const bind: SqlValue[] = [];
+
+    // Date range
+    if (filters.dateRange === 'today') {
+      conditions.push("DATE(t.ts) = DATE('now')");
+    } else if (filters.dateRange === '7d') {
+      conditions.push("DATE(t.ts) >= DATE('now', '-6 days')");
+    } else if (filters.dateRange === '30d') {
+      conditions.push("DATE(t.ts) >= DATE('now', '-29 days')");
+    }
+
+    // Channel
+    if (filters.channel) {
+      conditions.push(
+        `EXISTS (
+          SELECT 1 FROM transaction_payments tp2
+          WHERE tp2.transaction_id = t.id AND tp2.channel = ?
+        )`,
+      );
+      bind.push(filters.channel);
+    }
+
+    // Status
+    if (filters.status === 'complete') {
+      conditions.push('t.voided_at IS NULL');
+    } else if (filters.status === 'voided') {
+      conditions.push('t.voided_at IS NOT NULL');
+    }
+
+    // Search
+    if (filters.search.trim().length > 0) {
+      const like = `%${filters.search.trim()}%`;
+      conditions.push(
+        `(c.name LIKE ? OR UPPER(t.id) LIKE UPPER(?))`,
+      );
+      bind.push(like, like);
+    }
+
+    const where = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    const rows = this.selectAll(
+      `SELECT
+         t.id,
+         t.ts,
+         t.ts_is_manual,
+         COALESCE(c.name, 'Walk-in') AS customer_name,
+         t.net_pesewas,
+         CASE WHEN t.voided_at IS NOT NULL THEN 'voided' ELSE 'complete' END AS status,
+         u.name AS staff_name,
+         (SELECT GROUP_CONCAT(s2.name, ', ')
+          FROM transaction_items ti2
+          JOIN services s2 ON s2.id = ti2.service_id
+          WHERE ti2.transaction_id = t.id) AS service_names,
+         (SELECT channel
+          FROM transaction_payments
+          WHERE transaction_id = t.id
+          ORDER BY rowid
+          LIMIT 1) AS primary_channel
+       FROM transactions t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       JOIN users u ON u.id = t.staff_id
+       LEFT JOIN transaction_payments tp ON tp.transaction_id = t.id
+       ${where}
+       GROUP BY t.id
+       ORDER BY t.ts DESC
+       LIMIT 200`,
+      bind,
+    );
+
+    return rows.map((row) => this.mapSummaryRow(row));
+  }
+
+  async getById(id: string): Promise<TransactionDetail | null> {
+    const row = this.selectOne(
+      `SELECT
+         t.id,
+         t.ts,
+         t.ts_is_manual,
+         COALESCE(c.name, 'Walk-in') AS customer_name,
+         t.net_pesewas,
+         CASE WHEN t.voided_at IS NOT NULL THEN 'voided' ELSE 'complete' END AS status,
+         u.name AS staff_name,
+         (SELECT GROUP_CONCAT(s2.name, ', ')
+          FROM transaction_items ti2
+          JOIN services s2 ON s2.id = ti2.service_id
+          WHERE ti2.transaction_id = t.id) AS service_names,
+         (SELECT channel FROM transaction_payments
+          WHERE transaction_id = t.id ORDER BY rowid LIMIT 1) AS primary_channel,
+         t.gross_pesewas,
+         t.discount_pesewas,
+         t.amount_paid_pesewas,
+         t.change_pesewas,
+         t.notes,
+         t.void_reason,
+         t.voided_at,
+         vu.name AS voided_by_name,
+         t.created_at
+       FROM transactions t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       JOIN users u ON u.id = t.staff_id
+       LEFT JOIN users vu ON vu.id = t.voided_by
+       WHERE t.id = ?`,
+      [id],
+    );
+
+    if (!row) return null;
+
+    const summary = this.mapSummaryRow(row.slice(0, 9) as SqlValue[]);
+
+    const paymentRows = this.selectAll(
+      `SELECT channel, amount_pesewas, reference_no
+       FROM transaction_payments
+       WHERE transaction_id = ?
+       ORDER BY rowid`,
+      [id],
+    );
+
+    const payments: TransactionPaymentDetail[] = paymentRows.map((pr) => ({
+      channel: this.toString(pr[0]),
+      amountPesewas: this.toNumber(pr[1]),
+      referenceNo: this.toNullableString(pr[2]),
+    }));
+
+    return {
+      ...summary,
+      grossPesewas: this.toNumber(row[9]),
+      discountPesewas: this.toNumber(row[10]),
+      amountPaidPesewas: this.toNumber(row[11]),
+      changePesewas: this.toNumber(row[12]),
+      notes: this.toNullableString(row[13]),
+      voidReason: this.toNullableString(row[14]),
+      voidedAt: this.toNullableDate(row[15]),
+      voidedByName: this.toNullableString(row[16]),
+      payments,
+      createdAt: this.toDate(row[17]),
+    };
   }
 
   private mapSummaryRow(row: SqlValue[]): TransactionSummary {

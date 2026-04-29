@@ -1,4 +1,5 @@
 import type { ITransactionQueryRepository } from '@/features/transactions/repositories/ITransactionQueryRepository';
+import type { IOtherIncomeRepository } from '@/features/transactions/repositories/IOtherIncomeRepository';
 import type { DashboardStats, CreateDayClosureDto } from '../types';
 import type { IDayClosureRepository } from '../repositories/IDayClosureRepository';
 import type { AuditService } from '@/core/services/AuditService';
@@ -8,6 +9,7 @@ export class DashboardService {
     private readonly transactionQueryRepo: ITransactionQueryRepository,
     private readonly dayClosureRepo: IDayClosureRepository,
     private readonly auditService: AuditService,
+    private readonly otherIncomeRepo: IOtherIncomeRepository,
   ) {}
 
   private getTodayDate(): string {
@@ -46,14 +48,19 @@ export class DashboardService {
     const today = this.getTodayDate();
     const sixDaysAgo = this.getSixDaysAgoDate();
 
-    const [dailyStats, weeklyRaw, recentTransactions, existingClosure] = await Promise.all([
-      this.transactionQueryRepo.getDailyStats(today),
-      this.transactionQueryRepo.getWeeklyRevenue(sixDaysAgo),
-      this.transactionQueryRepo.getRecent(5),
-      this.dayClosureRepo.findByDate(today),
-    ]);
+    const [dailyStats, weeklyRaw, recentTransactions, existingClosure, otherIncomeCash] =
+      await Promise.all([
+        this.transactionQueryRepo.getDailyStats(today),
+        this.transactionQueryRepo.getWeeklyRevenue(sixDaysAgo),
+        this.transactionQueryRepo.getRecent(5),
+        this.dayClosureRepo.findByDate(today),
+        this.otherIncomeRepo.getDailyCashTotal(today),
+      ]);
 
-    const cashInDrawerPesewas = dailyStats.cashSalesPesewas - dailyStats.cashExpensesPesewas;
+    const cashInDrawerPesewas =
+      dailyStats.cashSalesPesewas +
+      otherIncomeCash -
+      dailyStats.cashExpensesPesewas;
 
     return {
       date: today,
