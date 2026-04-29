@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, ChevronRight, Search, Printer } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useReactToPrint } from 'react-to-print';
 
 import { ROUTES } from '@/config/routes';
 import { Button } from '@/shared/components/ui/Button';
@@ -12,6 +13,7 @@ import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
+import { Receipt, type ReceiptData } from '@/shared/components/layout/Receipt';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { useServices } from '@/core/ServiceContainerContext';
 import { useAuthStore, selectUser, selectSessionId } from '@/stores/authStore';
@@ -671,71 +673,134 @@ interface SuccessProps {
   onDone: () => void;
 }
 
-const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => (
-  <div className="max-w-md">
-    <Card padding="none" className="overflow-hidden">
-      <div className="bg-primary p-8 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-          <Check size={26} className="text-white" />
+const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
+  const { settingsService } = useServices();
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [receiptConfig, setReceiptConfig] = React.useState<{
+    spaName: string;
+    tagline: string;
+    address: string;
+    phone: string;
+  } | null>(null);
+
+  React.useEffect(() => {
+    void settingsService.getAll().then((config) => {
+      setReceiptConfig({
+        spaName: config.receiptSpaName,
+        tagline: config.receiptTagline,
+        address: config.receiptAddress,
+        phone: config.receiptPhone,
+      });
+    });
+  }, [settingsService]);
+
+  const print = useReactToPrint({
+    contentRef: receiptRef as React.RefObject<HTMLElement>,
+    documentTitle: 'Just Bloom Spa — Receipt',
+    pageStyle: `
+      @page { size: 80mm auto; margin: 0; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    `,
+  });
+
+  const receiptData: ReceiptData | null = receiptConfig
+    ? {
+        transactionId: result.id,
+        timestamp: result.timestamp,
+        customerName: result.customerName,
+        staffName: '',
+        serviceNames: result.serviceNames,
+        grossPesewas: result.grossPesewas,
+        discountPesewas: result.grossPesewas - result.netPesewas,
+        netPesewas: result.netPesewas,
+        amountPaidPesewas: result.netPesewas + result.changePesewas,
+        changePesewas: result.changePesewas,
+        primaryChannel: result.primaryChannel,
+        loyaltyPointsAwarded: result.loyaltyPointsAwarded,
+        spaName: receiptConfig.spaName,
+        tagline: receiptConfig.tagline,
+        address: receiptConfig.address,
+        phone: receiptConfig.phone,
+      }
+    : null;
+
+  return (
+    <div className="max-w-md">
+      {/* Hidden receipt for printing */}
+      {receiptData && (
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <Receipt ref={receiptRef} data={receiptData} />
         </div>
-        <p className="text-lg font-bold text-white">Transaction complete</p>
-        <p className="mt-1 text-sm text-white/60">
-          {result.id.slice(0, 8).toUpperCase()} ·{' '}
-          {new Date(result.timestamp).toLocaleTimeString('en-GB', {
-            hour: '2-digit', minute: '2-digit',
-          })}
-        </p>
-      </div>
-      <div className="p-6">
-        {result.customerName && (
-          <div className="mb-4 rounded-lg bg-primary-pale px-4 py-3">
-            <p className="text-xs text-text-secondary">Customer</p>
-            <p className="font-semibold text-text-primary">{result.customerName}</p>
-            {result.loyaltyPointsAwarded > 0 && (
-              <p className="mt-1 text-xs text-accent">
-                +{result.loyaltyPointsAwarded} loyalty points earned
-              </p>
-            )}
+      )}
+
+      <Card padding="none" className="overflow-hidden">
+        <div className="bg-primary p-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+            <Check size={26} className="text-white" />
           </div>
-        )}
-        {result.serviceNames.map((n) => (
-          <div key={n} className="flex justify-between border-b border-border py-2 text-sm">
-            <span className="text-text-primary">{n}</span>
+          <p className="text-lg font-bold text-white">Transaction complete</p>
+          <p className="mt-1 text-sm text-white/60">
+            {result.id.slice(0, 8).toUpperCase()} ·{' '}
+            {new Date(result.timestamp).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        </div>
+        <div className="p-6">
+          {result.customerName && (
+            <div className="mb-4 rounded-lg bg-primary-pale px-4 py-3">
+              <p className="text-xs text-text-secondary">Customer</p>
+              <p className="font-semibold text-text-primary">{result.customerName}</p>
+              {result.loyaltyPointsAwarded > 0 && (
+                <p className="mt-1 text-xs text-accent">
+                  +{result.loyaltyPointsAwarded} loyalty points earned
+                </p>
+              )}
+            </div>
+          )}
+          {result.serviceNames.map((n) => (
+            <div key={n} className="flex justify-between border-b border-border py-2 text-sm">
+              <span className="text-text-primary">{n}</span>
+            </div>
+          ))}
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-base font-bold text-text-primary">Total</span>
+            <span className="text-xl font-bold text-primary">
+              {formatCurrencyCompact(result.netPesewas)}
+            </span>
           </div>
-        ))}
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-base font-bold text-text-primary">Total</span>
-          <span className="text-xl font-bold text-primary">
-            {formatCurrencyCompact(result.netPesewas)}
-          </span>
+          <div className="mt-1 flex justify-between text-sm text-text-secondary">
+            <span>Change given</span>
+            <span>{formatCurrencyCompact(result.changePesewas)}</span>
+          </div>
+          <div className="mt-1 flex justify-between text-sm text-text-secondary">
+            <span>Payment</span>
+            <Badge variant={result.primaryChannel as 'cash' | 'momo' | 'bank' | 'split'}>
+              {result.primaryChannel.toUpperCase()}
+            </Badge>
+          </div>
+          <div className="mt-5 flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => print()}
+              leftIcon={<Printer size={14} />}
+              className="flex-1 justify-center"
+              disabled={!receiptData}
+            >
+              Print receipt
+            </Button>
+            <Button onClick={onDone} className="flex-1 justify-center">
+              Done
+            </Button>
+          </div>
         </div>
-        <div className="mt-1 flex justify-between text-sm text-text-secondary">
-          <span>Change given</span>
-          <span>{formatCurrencyCompact(result.changePesewas)}</span>
-        </div>
-        <div className="mt-1 flex justify-between text-sm text-text-secondary">
-          <span>Payment</span>
-          <Badge variant={result.primaryChannel as 'cash' | 'momo' | 'bank' | 'split'}>
-            {result.primaryChannel.toUpperCase()}
-          </Badge>
-        </div>
-        <div className="mt-5 flex gap-3">
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            leftIcon={<Printer size={14} />}
-            className="flex-1 justify-center"
-          >
-            Print receipt
-          </Button>
-          <Button onClick={onDone} className="flex-1 justify-center">
-            Done
-          </Button>
-        </div>
-      </div>
-    </Card>
-  </div>
-);
+      </Card>
+    </div>
+  );
+};
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 

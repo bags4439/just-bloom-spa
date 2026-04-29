@@ -5,6 +5,7 @@ import { getDatabase } from '@/core/database/connection';
 import { ServiceContainer } from '@/core/ServiceContainer';
 import { ServiceContainerProvider } from '@/core/ServiceContainerContext';
 import { Spinner } from '@/shared/components/ui/Spinner';
+import { InstallPrompt } from '@/shared/components/ui/InstallPrompt';
 import { ToastContainer } from '@/shared/components/ui/Toast';
 
 interface ProvidersProps {
@@ -63,6 +64,7 @@ export const Providers: React.FC<ProvidersProps> = ({ children }) => {
       <BrowserRouter>
         {children}
         <ToastContainer />
+        <InstallPrompt />
       </BrowserRouter>
     </ServiceContainerProvider>
   );

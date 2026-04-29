@@ -1,9 +1,6 @@
 export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = `
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
-
   CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))

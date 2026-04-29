@@ -14,13 +14,36 @@ let dbInstance: AsyncDatabase | null = null;
 let initPromise: Promise<AsyncDatabase> | null = null;
 
 async function initialiseSchema(db: AsyncDatabase): Promise<void> {
-  await db.execAsync(SCHEMA_SQL);
+  // Enable foreign keys as a single statement (safe in worker mode)
+  await db.execAsync('PRAGMA foreign_keys = ON');
+
+  // Split schema SQL into individual statements and execute one at a time.
+  // Multi-statement exec crashes SQLite WASM in worker/OPFS mode.
+  const statements = SCHEMA_SQL
+    .split(';')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  for (const statement of statements) {
+    await db.execAsync(statement);
+  }
 
   const currentVersion =
-    (await db.selectValueAsync('SELECT MAX(version) FROM schema_version')) as number | null ?? 0;
+    (await db.selectValueAsync(
+      'SELECT MAX(version) FROM schema_version',
+    )) as number | null ?? 0;
 
   if (currentVersion < 1) {
-    await db.execAsync(SEED_SQL);
+    // Split SEED_SQL the same way
+    const seedStatements = SEED_SQL
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    for (const statement of seedStatements) {
+      await db.execAsync(statement);
+    }
+
     await db.execAsync(
       'INSERT INTO schema_version (version) VALUES (?)',
       [1],
@@ -31,7 +54,16 @@ async function initialiseSchema(db: AsyncDatabase): Promise<void> {
   for (let v = startFrom + 1; v <= SCHEMA_VERSION; v++) {
     const migration = MIGRATIONS[v];
     if (migration) {
-      await db.execAsync(migration);
+      // Split migration SQL the same way
+      const migrationStatements = migration
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      for (const statement of migrationStatements) {
+        await db.execAsync(statement);
+      }
+
       await db.execAsync(
         'INSERT INTO schema_version (version) VALUES (?)',
         [v],
