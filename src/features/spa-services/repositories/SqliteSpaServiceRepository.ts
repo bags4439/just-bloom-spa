@@ -49,7 +49,7 @@ export class SqliteSpaServiceRepository
   }
 
   async findAllCategories(): Promise<SpaServiceCategory[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT id, name, description, display_order, is_active
        FROM service_categories
        WHERE is_active = 1
@@ -59,7 +59,7 @@ export class SqliteSpaServiceRepository
   }
 
   async findAllActive(): Promise<SpaService[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${SERVICE_COLUMNS}
        FROM services s
        JOIN service_categories sc ON sc.id = s.category_id
@@ -70,7 +70,7 @@ export class SqliteSpaServiceRepository
   }
 
   async findAll(): Promise<SpaService[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${SERVICE_COLUMNS}
        FROM services s
        JOIN service_categories sc ON sc.id = s.category_id
@@ -81,7 +81,7 @@ export class SqliteSpaServiceRepository
   }
 
   async findById(id: string): Promise<SpaService | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT ${SERVICE_COLUMNS}
        FROM services s
        JOIN service_categories sc ON sc.id = s.category_id
@@ -94,7 +94,7 @@ export class SqliteSpaServiceRepository
   async create(dto: CreateSpaServiceDto): Promise<SpaService> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO services
          (id, category_id, name, description, price_pesewas,
           is_active, created_by, created_at, updated_at)
@@ -108,7 +108,7 @@ export class SqliteSpaServiceRepository
   }
 
   async update(id: string, dto: UpdateSpaServiceDto): Promise<SpaService> {
-    this.run(
+    await this.run(
       `UPDATE services
        SET category_id = ?, name = ?, description = ?,
            price_pesewas = ?, updated_at = ?
@@ -122,7 +122,7 @@ export class SqliteSpaServiceRepository
   }
 
   async toggleActive(id: string, isActive: boolean): Promise<void> {
-    this.run(
+    await this.run(
       `UPDATE services SET is_active = ?, updated_at = ? WHERE id = ?`,
       [isActive ? 1 : 0, this.nowIso(), id],
     );

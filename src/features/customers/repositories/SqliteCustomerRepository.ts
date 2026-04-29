@@ -52,7 +52,7 @@ export class SqliteCustomerRepository
   }
 
   async findById(id: string): Promise<Customer | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT ${BASE_COLUMNS}
        FROM customers c
        WHERE c.id = ? AND c.deleted_at IS NULL`,
@@ -62,7 +62,7 @@ export class SqliteCustomerRepository
   }
 
   async findByIdWithStats(id: string): Promise<CustomerWithStats | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT ${BASE_COLUMNS}, ${STATS_COLUMNS}
        FROM customers c
        LEFT JOIN transactions t
@@ -78,7 +78,7 @@ export class SqliteCustomerRepository
     const hasSearch = search && search.trim().length > 0;
     const like = hasSearch ? `%${search!.trim()}%` : null;
 
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${BASE_COLUMNS}, ${STATS_COLUMNS}
        FROM customers c
        LEFT JOIN transactions t
@@ -94,7 +94,7 @@ export class SqliteCustomerRepository
 
   async search(query: string): Promise<Customer[]> {
     const like = `%${query}%`;
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${BASE_COLUMNS}
        FROM customers c
        WHERE c.deleted_at IS NULL
@@ -107,7 +107,7 @@ export class SqliteCustomerRepository
   }
 
   async findAll(): Promise<Customer[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${BASE_COLUMNS}
        FROM customers c
        WHERE c.deleted_at IS NULL ORDER BY c.name ASC`,
@@ -118,7 +118,7 @@ export class SqliteCustomerRepository
   async create(dto: CreateCustomerDto): Promise<Customer> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO customers
          (id, name, phone, email, loyalty_points, notes, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, 0, NULL, ?, ?, ?)`,
@@ -130,7 +130,7 @@ export class SqliteCustomerRepository
   }
 
   async update(id: string, dto: UpdateCustomerDto): Promise<Customer> {
-    this.run(
+    await this.run(
       `UPDATE customers
        SET name = ?, phone = ?, email = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
@@ -142,7 +142,7 @@ export class SqliteCustomerRepository
   }
 
   async updateLoyaltyPoints(id: string, points: number): Promise<void> {
-    this.run(
+    await this.run(
       `UPDATE customers SET loyalty_points = ?, updated_at = ? WHERE id = ?`,
       [points, this.nowIso(), id],
     );

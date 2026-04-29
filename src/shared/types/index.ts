@@ -1,9 +1,9 @@
 export type SqlValue = string | number | null | Uint8Array;
 
 export interface Database {
-  exec(sql: string, options?: { bind?: SqlValue[] }): Database;
-  selectArrays(sql: string, bind?: SqlValue[]): SqlValue[][];
-  selectValue(sql: string, bind?: SqlValue[]): SqlValue | undefined;
+  execAsync(sql: string, bind?: SqlValue[]): Promise<void>;
+  selectArraysAsync(sql: string, bind?: SqlValue[]): Promise<SqlValue[][]>;
+  selectValueAsync(sql: string, bind?: SqlValue[]): Promise<SqlValue | undefined>;
   close(): void;
 }
 

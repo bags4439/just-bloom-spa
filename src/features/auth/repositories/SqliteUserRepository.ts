@@ -32,7 +32,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async findById(id: string): Promise<UserRecord | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT ${USER_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL`,
       [id],
     );
@@ -40,7 +40,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async findByUsername(username: string): Promise<UserRecord | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT ${USER_COLUMNS} FROM users WHERE username = ? AND deleted_at IS NULL`,
       [username],
     );
@@ -48,14 +48,14 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async findAll(): Promise<UserRecord[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${USER_COLUMNS} FROM users WHERE deleted_at IS NULL ORDER BY name ASC`,
     );
     return rows.map((row) => this.mapRow(row));
   }
 
   async findActive(): Promise<UserRecord[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT ${USER_COLUMNS} FROM users
        WHERE deleted_at IS NULL AND is_active = 1 ORDER BY name ASC`,
     );
@@ -63,7 +63,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async countAll(): Promise<number> {
-    const value = this.selectScalar(
+    const value = await this.selectScalar(
       `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`,
     );
     return this.toNumber(value ?? 0);
@@ -72,7 +72,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   async create(dto: CreateUserDto, passwordHash: string): Promise<UserRecord> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO users
          (id, name, username, password_hash, role, is_active,
           must_change_password, created_by, created_at, updated_at)
@@ -85,7 +85,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
-    this.run(`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`, [
+    await this.run(`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`, [
       passwordHash,
       this.nowIso(),
       userId,
@@ -93,7 +93,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async setMustChangePassword(userId: string, value: boolean): Promise<void> {
-    this.run(`UPDATE users SET must_change_password = ?, updated_at = ? WHERE id = ?`, [
+    await this.run(`UPDATE users SET must_change_password = ?, updated_at = ? WHERE id = ?`, [
       value ? 1 : 0,
       this.nowIso(),
       userId,
@@ -101,7 +101,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
   }
 
   async setActive(userId: string, isActive: boolean): Promise<void> {
-    this.run(`UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?`, [
+    await this.run(`UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?`, [
       isActive ? 1 : 0,
       this.nowIso(),
       userId,
@@ -110,7 +110,7 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
 
   async softDelete(userId: string): Promise<void> {
     const now = this.nowIso();
-    this.run(`UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
+    await this.run(`UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
       now,
       now,
       userId,

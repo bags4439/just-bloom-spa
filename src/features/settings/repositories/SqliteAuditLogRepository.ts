@@ -15,7 +15,11 @@ export class SqliteAuditLogRepository
   private mapRow(row: SqlValue[]): AuditLogEntry {
     const parseJson = (val: SqlValue): unknown => {
       if (val === null || val === undefined) return null;
-      try { return JSON.parse(String(val)); } catch { return val; }
+      try {
+        return JSON.parse(String(val));
+      } catch {
+        return val;
+      }
     };
 
     return {
@@ -40,7 +44,6 @@ export class SqliteAuditLogRepository
     const conditions: string[] = [];
     const bind: SqlValue[] = [];
 
-    // Date range
     if (filters.dateRange === 'today') {
       conditions.push("DATE(al.created_at) = DATE('now')");
     } else if (filters.dateRange === '7d') {
@@ -49,13 +52,11 @@ export class SqliteAuditLogRepository
       conditions.push("DATE(al.created_at) >= DATE('now', '-29 days')");
     }
 
-    // Actor
     if (filters.actorId) {
       conditions.push('al.actor_id = ?');
       bind.push(filters.actorId);
     }
 
-    // Action category
     if (filters.actionCategory && CATEGORIES[filters.actionCategory]) {
       const actions = CATEGORIES[filters.actionCategory]!;
       const placeholders = actions.map(() => '?').join(', ');
@@ -63,10 +64,11 @@ export class SqliteAuditLogRepository
       bind.push(...(actions as SqlValue[]));
     }
 
-    // Search
     if (filters.search.trim().length > 0) {
       const like = `%${filters.search.trim()}%`;
-      conditions.push('(al.action LIKE ? OR al.entity_type LIKE ? OR al.entity_id LIKE ?)');
+      conditions.push(
+        '(al.action LIKE ? OR al.entity_type LIKE ? OR al.entity_id LIKE ?)',
+      );
       bind.push(like, like, like);
     }
 
@@ -83,7 +85,7 @@ export class SqliteAuditLogRepository
       conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const offset = (page - 1) * pageSize;
 
-    const totalValue = this.selectScalar(
+    const totalValue = await this.selectScalar(
       `SELECT COUNT(*)
        FROM audit_logs al
        LEFT JOIN users u ON u.id = al.actor_id
@@ -92,7 +94,7 @@ export class SqliteAuditLogRepository
     );
     const total = this.toNumber(totalValue ?? 0);
 
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          al.id,
          al.actor_id,

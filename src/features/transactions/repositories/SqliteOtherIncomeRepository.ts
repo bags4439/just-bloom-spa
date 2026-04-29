@@ -35,7 +35,7 @@ export class SqliteOtherIncomeRepository
   }): Promise<void> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO other_income
          (id, ts, staff_id, category, amount_pesewas,
           payment_channel, reference_no, notes, created_at, updated_at)
@@ -53,7 +53,7 @@ export class SqliteOtherIncomeRepository
     else if (dateRange === '7d') dateCondition = "AND DATE(oi.ts) >= DATE('now', '-6 days')";
     else if (dateRange === '30d') dateCondition = "AND DATE(oi.ts) >= DATE('now', '-29 days')";
 
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT oi.id, oi.ts, oi.category, oi.amount_pesewas,
               oi.payment_channel, oi.reference_no, oi.notes, u.name
        FROM other_income oi
@@ -66,7 +66,7 @@ export class SqliteOtherIncomeRepository
   }
 
   async getDailyCashTotal(date: string): Promise<number> {
-    const value = this.selectScalar(
+    const value = await this.selectScalar(
       `SELECT COALESCE(SUM(amount_pesewas), 0)
        FROM other_income
        WHERE DATE(ts) = ? AND payment_channel = 'cash'`,

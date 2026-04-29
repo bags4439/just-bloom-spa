@@ -32,23 +32,34 @@ export abstract class BaseRepository {
   }
 
   protected toNullableDate(value: SqlValue | undefined): Date | null {
-    return value === null || value === undefined ? null : new Date(String(value));
+    return value === null || value === undefined
+      ? null
+      : new Date(String(value));
   }
 
-  protected selectOne(sql: string, bind?: SqlValue[]): SqlValue[] | null {
-    const rows = this.db.selectArrays(sql, bind);
+  protected async selectOne(
+    sql: string,
+    bind?: SqlValue[],
+  ): Promise<SqlValue[] | null> {
+    const rows = await this.db.selectArraysAsync(sql, bind);
     return rows[0] ?? null;
   }
 
-  protected selectAll(sql: string, bind?: SqlValue[]): SqlValue[][] {
-    return this.db.selectArrays(sql, bind);
+  protected async selectAll(
+    sql: string,
+    bind?: SqlValue[],
+  ): Promise<SqlValue[][]> {
+    return this.db.selectArraysAsync(sql, bind);
   }
 
-  protected selectScalar(sql: string, bind?: SqlValue[]): SqlValue | undefined {
-    return this.db.selectValue(sql, bind);
+  protected async selectScalar(
+    sql: string,
+    bind?: SqlValue[],
+  ): Promise<SqlValue | undefined> {
+    return this.db.selectValueAsync(sql, bind);
   }
 
-  protected run(sql: string, bind?: SqlValue[]): void {
-    this.db.exec(sql, bind ? { bind } : undefined);
+  protected async run(sql: string, bind?: SqlValue[]): Promise<void> {
+    await this.db.execAsync(sql, bind);
   }
 }

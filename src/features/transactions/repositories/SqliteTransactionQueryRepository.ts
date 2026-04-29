@@ -22,21 +22,21 @@ export class SqliteTransactionQueryRepository
   }
 
   async getDailyStats(date: string): Promise<DailyTransactionStats> {
-    const revenue = this.selectScalar(
+    const revenue = await this.selectScalar(
       `SELECT COALESCE(SUM(net_pesewas), 0)
        FROM transactions
        WHERE DATE(ts) = ? AND type = 'sale' AND voided_at IS NULL`,
       [date],
     );
 
-    const count = this.selectScalar(
+    const count = await this.selectScalar(
       `SELECT COUNT(*)
        FROM transactions
        WHERE DATE(ts) = ? AND type = 'sale' AND voided_at IS NULL`,
       [date],
     );
 
-    const topServiceRow = this.selectOne(
+    const topServiceRow = await this.selectOne(
       `SELECT s.name
        FROM transaction_items ti
        JOIN services s ON s.id = ti.service_id
@@ -50,7 +50,7 @@ export class SqliteTransactionQueryRepository
       [date],
     );
 
-    const cashSales = this.selectScalar(
+    const cashSales = await this.selectScalar(
       `SELECT COALESCE(SUM(tp.amount_pesewas), 0)
        FROM transaction_payments tp
        JOIN transactions t ON t.id = tp.transaction_id
@@ -61,7 +61,7 @@ export class SqliteTransactionQueryRepository
       [date],
     );
 
-    const cashExpenses = this.selectScalar(
+    const cashExpenses = await this.selectScalar(
       `SELECT COALESCE(SUM(amount_pesewas), 0)
        FROM expenses
        WHERE DATE(ts) = ? AND payment_channel = 'cash'`,
@@ -78,7 +78,7 @@ export class SqliteTransactionQueryRepository
   }
 
   async getWeeklyRevenue(fromDate: string): Promise<WeeklyRevenuePoint[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT DATE(ts) as d, COALESCE(SUM(net_pesewas), 0) as rev
        FROM transactions
        WHERE type = 'sale'
@@ -101,7 +101,7 @@ export class SqliteTransactionQueryRepository
   }
 
   async getRecent(limit: number): Promise<TransactionSummary[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          t.id,
          t.ts,
@@ -175,7 +175,7 @@ export class SqliteTransactionQueryRepository
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          t.id,
          t.ts,
@@ -208,7 +208,7 @@ export class SqliteTransactionQueryRepository
   }
 
   async getById(id: string): Promise<TransactionDetail | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT
          t.id,
          t.ts,
@@ -244,7 +244,7 @@ export class SqliteTransactionQueryRepository
 
     const summary = this.mapSummaryRow(row.slice(0, 9) as SqlValue[]);
 
-    const paymentRows = this.selectAll(
+    const paymentRows = await this.selectAll(
       `SELECT channel, amount_pesewas, reference_no
        FROM transaction_payments
        WHERE transaction_id = ?
@@ -277,7 +277,7 @@ export class SqliteTransactionQueryRepository
     customerId: string,
     limit: number,
   ): Promise<TransactionSummary[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          t.id,
          t.ts,

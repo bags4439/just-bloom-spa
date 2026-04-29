@@ -17,6 +17,7 @@ import { StaffService } from '@/features/staff/services/StaffService';
 import { SettingsService } from '@/features/settings/services/SettingsService';
 import { ReportService } from '@/features/reports/services/ReportService';
 import { AuditLogService } from '@/features/settings/services/AuditLogService';
+import { BackupService } from '@/features/settings/services/BackupService';
 import { AuditService } from './services/AuditService';
 import { AuthService } from './services/AuthService';
 import { SessionService } from './services/SessionService';
@@ -35,6 +36,7 @@ export class ServiceContainer {
   public readonly settingsService: SettingsService;
   public readonly reportService: ReportService;
   public readonly auditLogService: AuditLogService;
+  public readonly backupService: BackupService;
   public readonly spaServiceRepo: SqliteSpaServiceRepository;
   public readonly customerRepo: SqliteCustomerRepository;
   public readonly transactionQueryRepo: SqliteTransactionQueryRepository;
@@ -75,6 +77,7 @@ export class ServiceContainer {
     this.settingsService = new SettingsService(db);
     this.reportService = new ReportService(reportRepo);
     this.auditLogService = new AuditLogService(auditLogRepo);
+    this.backupService = new BackupService(db, this.auditService);
     this.spaServiceRepo = spaServiceRepo;
     this.customerRepo = customerRepo;
     this.transactionQueryRepo = transactionQueryRepo;

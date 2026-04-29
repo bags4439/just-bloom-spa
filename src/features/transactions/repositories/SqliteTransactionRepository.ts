@@ -19,7 +19,7 @@ export class SqliteTransactionRepository
 
     // Build all inserts as one batched exec call.
     // SQLite WASM executes multi-statement SQL atomically — no BEGIN/COMMIT needed.
-    this.run(
+    await this.run(
       `INSERT INTO transactions
          (id, ts, ts_is_manual, type, staff_id, customer_id,
           gross_pesewas, discount_pesewas, loyalty_redeemed_pesewas,
@@ -44,7 +44,7 @@ export class SqliteTransactionRepository
     );
 
     for (const item of dto.serviceIds) {
-      this.run(
+      await this.run(
         `INSERT INTO transaction_items
            (id, transaction_id, service_id, price_at_time_pesewas, created_at)
          VALUES (?, ?, ?, ?, ?)`,
@@ -53,7 +53,7 @@ export class SqliteTransactionRepository
     }
 
     for (const payment of dto.payments) {
-      this.run(
+      await this.run(
         `INSERT INTO transaction_payments
            (id, transaction_id, channel, amount_pesewas, reference_no, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
@@ -72,7 +72,7 @@ export class SqliteTransactionRepository
   async createExpense(dto: CreateExpenseDto): Promise<void> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO expenses
          (id, ts, staff_id, category, amount_pesewas,
           payment_channel, reference_no, notes, created_at, updated_at)
@@ -98,7 +98,7 @@ export class SqliteTransactionRepository
     voidedBy: string,
   ): Promise<void> {
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `UPDATE transactions
        SET voided_at = ?, void_reason = ?, voided_by = ?, updated_at = ?
        WHERE id = ? AND voided_at IS NULL`,

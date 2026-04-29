@@ -25,6 +25,7 @@ import { ServiceModal } from './ServiceModal';
 import { StaffModal } from './StaffModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { AuditLogTab } from './AuditLogTab';
+import { BackupSection } from './BackupSection';
 
 type Tab = 'services' | 'staff' | 'general' | 'audit';
 
@@ -361,7 +362,7 @@ const GeneralTab: React.FC = () => {
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
   const loadConfig = useCallback((): void => {
-    setConfig(settingsService.getAll());
+    void settingsService.getAll().then(setConfig);
   }, [settingsService]);
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
@@ -519,6 +520,8 @@ const GeneralTab: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <BackupSection />
     </>
   );
 };

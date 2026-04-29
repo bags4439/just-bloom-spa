@@ -25,7 +25,7 @@ export class SqliteDayClosureRepository
   }
 
   async findByDate(date: string): Promise<DayClosure | null> {
-    const row = this.selectOne(
+    const row = await this.selectOne(
       `SELECT id, close_date, closed_by, expected_cash_pesewas,
               actual_cash_pesewas, discrepancy_pesewas, notes, closed_at
        FROM day_closures
@@ -38,7 +38,7 @@ export class SqliteDayClosureRepository
   async create(dto: CreateDayClosureDto): Promise<DayClosure> {
     const id = this.generateId();
     const now = this.nowIso();
-    this.run(
+    await this.run(
       `INSERT INTO day_closures
          (id, close_date, closed_by, expected_cash_pesewas,
           actual_cash_pesewas, discrepancy_pesewas, notes, closed_at)

@@ -19,7 +19,7 @@ export class SqliteReportRepository
   }
 
   async getRevenueReport(from: string, to: string): Promise<RevenueReport> {
-    const totalRevenue = this.selectScalar(
+    const totalRevenue = await this.selectScalar(
       `SELECT COALESCE(SUM(net_pesewas), 0)
        FROM transactions
        WHERE type = 'sale'
@@ -28,7 +28,7 @@ export class SqliteReportRepository
       [from, to],
     );
 
-    const transactionCount = this.selectScalar(
+    const transactionCount = await this.selectScalar(
       `SELECT COUNT(*)
        FROM transactions
        WHERE type = 'sale'
@@ -37,21 +37,21 @@ export class SqliteReportRepository
       [from, to],
     );
 
-    const totalExpenses = this.selectScalar(
+    const totalExpenses = await this.selectScalar(
       `SELECT COALESCE(SUM(amount_pesewas), 0)
        FROM expenses
        WHERE DATE(ts) >= ? AND DATE(ts) <= ?`,
       [from, to],
     );
 
-    const totalOtherIncome = this.selectScalar(
+    const totalOtherIncome = await this.selectScalar(
       `SELECT COALESCE(SUM(amount_pesewas), 0)
        FROM other_income
        WHERE DATE(ts) >= ? AND DATE(ts) <= ?`,
       [from, to],
     );
 
-    const channelRows = this.selectAll(
+    const channelRows = await this.selectAll(
       `SELECT tp.channel,
               COALESCE(SUM(tp.amount_pesewas), 0) AS amount,
               COUNT(DISTINCT t.id) AS cnt
@@ -90,7 +90,7 @@ export class SqliteReportRepository
   }
 
   async getDailyRevenue(from: string, to: string): Promise<DailyRevenuePoint[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT DATE(ts) as d, COALESCE(SUM(net_pesewas), 0) as rev
        FROM transactions
        WHERE type = 'sale'
@@ -132,7 +132,7 @@ export class SqliteReportRepository
     from: string,
     to: string,
   ): Promise<ServicePopularityRow[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          s.id,
          s.name,
@@ -164,7 +164,7 @@ export class SqliteReportRepository
     from: string,
     to: string,
   ): Promise<StaffPerformanceRow[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          u.id,
          u.name,
@@ -207,7 +207,7 @@ export class SqliteReportRepository
     to: string,
     limit: number,
   ): Promise<TopCustomerRow[]> {
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT
          c.id,
          c.name,

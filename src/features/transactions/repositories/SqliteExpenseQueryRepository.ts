@@ -26,7 +26,7 @@ export class SqliteExpenseQueryRepository extends BaseRepository {
     else if (dateRange === '7d') dateCondition = "AND DATE(e.ts) >= DATE('now', '-6 days')";
     else if (dateRange === '30d') dateCondition = "AND DATE(e.ts) >= DATE('now', '-29 days')";
 
-    const rows = this.selectAll(
+    const rows = await this.selectAll(
       `SELECT e.id, e.ts, e.category, e.amount_pesewas,
               e.payment_channel, e.reference_no, e.notes, u.name
        FROM expenses e
@@ -39,7 +39,7 @@ export class SqliteExpenseQueryRepository extends BaseRepository {
   }
 
   async getDailyCashTotal(date: string): Promise<number> {
-    const value = this.selectScalar(
+    const value = await this.selectScalar(
       `SELECT COALESCE(SUM(amount_pesewas), 0)
        FROM expenses
        WHERE DATE(ts) = ? AND payment_channel = 'cash'`,

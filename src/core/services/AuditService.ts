@@ -31,12 +31,13 @@ export class AuditService {
       now,
     ];
 
-    this.db.exec(
+    // Fire and forget — audit logs must never block the main flow
+    void this.db.execAsync(
       `INSERT INTO audit_logs
          (id, actor_id, session_id, action, entity_type, entity_id,
           old_value, new_value, metadata, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      { bind },
+      bind,
     );
   }
 }
