@@ -674,25 +674,9 @@ interface SuccessProps {
 }
 
 const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
-  const { settingsService } = useServices();
+  const receiptConfig = useUiStore((s) => s.receiptConfig);
+  const currentUser = useAuthStore(selectUser);
   const receiptRef = useRef<HTMLDivElement>(null);
-  const [receiptConfig, setReceiptConfig] = React.useState<{
-    spaName: string;
-    tagline: string;
-    address: string;
-    phone: string;
-  } | null>(null);
-
-  React.useEffect(() => {
-    void settingsService.getAll().then((config) => {
-      setReceiptConfig({
-        spaName: config.receiptSpaName,
-        tagline: config.receiptTagline,
-        address: config.receiptAddress,
-        phone: config.receiptPhone,
-      });
-    });
-  }, [settingsService]);
 
   const print = useReactToPrint({
     contentRef: receiptRef as React.RefObject<HTMLElement>,
@@ -705,35 +689,31 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
     `,
   });
 
-  const receiptData: ReceiptData | null = receiptConfig
-    ? {
-        transactionId: result.id,
-        timestamp: result.timestamp,
-        customerName: result.customerName,
-        staffName: '',
-        serviceNames: result.serviceNames,
-        grossPesewas: result.grossPesewas,
-        discountPesewas: result.grossPesewas - result.netPesewas,
-        netPesewas: result.netPesewas,
-        amountPaidPesewas: result.netPesewas + result.changePesewas,
-        changePesewas: result.changePesewas,
-        primaryChannel: result.primaryChannel,
-        loyaltyPointsAwarded: result.loyaltyPointsAwarded,
-        spaName: receiptConfig.spaName,
-        tagline: receiptConfig.tagline,
-        address: receiptConfig.address,
-        phone: receiptConfig.phone,
-      }
-    : null;
+  const receiptData: ReceiptData = {
+    transactionId: result.id,
+    timestamp: result.timestamp,
+    customerName: result.customerName,
+    staffName: currentUser?.name ?? '',
+    serviceNames: result.serviceNames,
+    grossPesewas: result.grossPesewas,
+    discountPesewas: result.grossPesewas - result.netPesewas,
+    netPesewas: result.netPesewas,
+    amountPaidPesewas: result.netPesewas + result.changePesewas,
+    changePesewas: result.changePesewas,
+    primaryChannel: result.primaryChannel,
+    loyaltyPointsAwarded: result.loyaltyPointsAwarded,
+    spaName: receiptConfig.spaName,
+    tagline: receiptConfig.tagline,
+    address: receiptConfig.address,
+    phone: receiptConfig.phone,
+  };
 
   return (
     <div className="max-w-md">
       {/* Hidden receipt for printing */}
-      {receiptData && (
-        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-          <Receipt ref={receiptRef} data={receiptData} />
-        </div>
-      )}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+        <Receipt ref={receiptRef} data={receiptData} />
+      </div>
 
       <Card padding="none" className="overflow-hidden">
         <div className="bg-primary p-8 text-center">
@@ -788,7 +768,6 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
               onClick={() => print()}
               leftIcon={<Printer size={14} />}
               className="flex-1 justify-center"
-              disabled={!receiptData}
             >
               Print receipt
             </Button>

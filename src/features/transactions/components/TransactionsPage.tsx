@@ -5,7 +5,8 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { Search, X, ChevronRight } from 'lucide-react';
+import { Search, X, ChevronRight, Printer } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,6 +16,7 @@ import { Badge, type BadgeVariant } from '@/shared/components/ui/Badge';
 import { Modal } from '@/shared/components/ui/Modal';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
+import { Receipt, type ReceiptData } from '@/shared/components/layout/Receipt';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { formatDateTime, formatTime } from '@/shared/utils/formatDate';
 import { useServices } from '@/core/ServiceContainerContext';
@@ -134,49 +136,132 @@ interface DetailModalProps {
 
 const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) => {
   const user = useAuthStore(selectUser);
+  const receiptConfig = useUiStore((s) => s.receiptConfig);
   const isVoided = detail.status === TransactionStatus.VOIDED;
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const print = useReactToPrint({
+    contentRef: receiptRef as React.RefObject<HTMLElement>,
+    documentTitle: 'Just Bloom Spa — Receipt',
+    pageStyle: `
+      @page { size: 80mm auto; margin: 0; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    `,
+    onBeforePrint: () => {
+      setIsPrinting(true);
+      return Promise.resolve();
+    },
+    onAfterPrint: () => {
+      setIsPrinting(false);
+    },
+  });
+
+  const handleVoidClick = useCallback((): void => {
+    onClose();
+    onVoid(detail.id);
+  }, [onClose, onVoid, detail.id]);
+
   const isWithinVoidWindow = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- void window must compare to wall clock when detail is shown
     const ageMs = Date.now() - new Date(detail.timestamp).getTime();
     return ageMs <= 5 * 60 * 1000;
   }, [detail.timestamp]);
 
-  const staffCanVoid = user?.role === 'staff' && detail.staffName === user.name && isWithinVoidWindow;
-  const managerCanVoid = user?.role === 'manager' || user?.role === 'owner';
+  const staffCanVoid =
+    user?.role === 'staff' &&
+    detail.staffName === user.name &&
+    isWithinVoidWindow;
+  const managerCanVoid =
+    user?.role === 'manager' || user?.role === 'owner';
   const showVoidButton = !isVoided && (staffCanVoid || managerCanVoid);
 
+  const receiptData: ReceiptData | null = !isVoided
+      ? {
+          transactionId: detail.id,
+          timestamp: detail.timestamp,
+          customerName:
+            detail.customerName === 'Walk-in' ? null : detail.customerName,
+          staffName: detail.staffName,
+          serviceNames: detail.serviceNames,
+          grossPesewas: detail.grossPesewas,
+          discountPesewas: detail.discountPesewas,
+          netPesewas: detail.netPesewas,
+          amountPaidPesewas: detail.amountPaidPesewas,
+          changePesewas: detail.changePesewas,
+          primaryChannel: detail.payments[0]?.channel ?? detail.primaryChannel,
+          loyaltyPointsAwarded: 0,
+          spaName: receiptConfig.spaName,
+          tagline: receiptConfig.tagline,
+          address: receiptConfig.address,
+          phone: receiptConfig.phone,
+        }
+      : null;
+
   return (
-    <Modal isOpen={true} onClose={onClose}
+    <Modal
+      isOpen={true}
+      onClose={onClose}
       title={`Transaction ${detail.id.slice(0, 8).toUpperCase()}`}
-      description={formatDateTime(detail.timestamp)} size="md">
+      description={formatDateTime(detail.timestamp)}
+      size="md"
+    >
+      {receiptData && (
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <Receipt ref={receiptRef} data={receiptData} />
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
         {isVoided && (
           <div className="rounded-lg bg-red-50 px-4 py-3">
             <p className="text-sm font-semibold text-red-700">Voided</p>
-            {detail.voidReason && <p className="mt-1 text-xs text-red-600">Reason: {detail.voidReason}</p>}
-            {detail.voidedByName && <p className="text-xs text-red-500">By: {detail.voidedByName}</p>}
+            {detail.voidReason && (
+              <p className="mt-1 text-xs text-red-600">
+                Reason: {detail.voidReason}
+              </p>
+            )}
+            {detail.voidedByName && (
+              <p className="text-xs text-red-500">By: {detail.voidedByName}</p>
+            )}
           </div>
         )}
+
         <div className="rounded-lg bg-cream p-4 text-sm">
           <div className="mb-2 flex justify-between">
             <span className="text-text-secondary">Customer</span>
-            <span className="font-medium text-text-primary">{detail.customerName}</span>
+            <span className="font-medium text-text-primary">
+              {detail.customerName}
+            </span>
           </div>
           <div className="mb-2 flex justify-between">
             <span className="text-text-secondary">Staff</span>
-            <span className="font-medium text-text-primary">{detail.staffName}</span>
+            <span className="font-medium text-text-primary">
+              {detail.staffName}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Recorded</span>
             <span className="font-medium text-text-primary">
               {formatDateTime(detail.createdAt)}
-              {detail.isTimestampManual && <span className="ml-1 text-xs text-accent">✎</span>}
+              {detail.isTimestampManual && (
+                <span className="ml-1 text-xs text-accent">✎</span>
+              )}
             </span>
           </div>
         </div>
+
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">Services</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            Services
+          </p>
           {detail.serviceNames.map((n) => (
-            <div key={n} className="flex justify-between border-b border-border py-2 text-sm">
+            <div
+              key={n}
+              className="flex justify-between border-b border-border py-2 text-sm"
+            >
               <span className="text-text-primary">{n}</span>
             </div>
           ))}
@@ -188,18 +273,34 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
           )}
           <div className="mt-1 flex justify-between font-bold">
             <span className="text-text-primary">Total</span>
-            <span className="text-primary">{formatCurrencyCompact(detail.netPesewas)}</span>
+            <span className="text-primary">
+              {formatCurrencyCompact(detail.netPesewas)}
+            </span>
           </div>
         </div>
+
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">Payments</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            Payments
+          </p>
           {detail.payments.map((p, i) => (
-            <div key={i} className="flex items-center justify-between border-b border-border py-2 text-sm">
+            <div
+              key={i}
+              className="flex items-center justify-between border-b border-border py-2 text-sm"
+            >
               <div className="flex items-center gap-2">
-                <Badge variant={CHANNEL_VARIANT[p.channel] ?? 'neutral'}>{p.channel.toUpperCase()}</Badge>
-                {p.referenceNo && <span className="font-mono text-xs text-text-tertiary">{p.referenceNo}</span>}
+                <Badge variant={CHANNEL_VARIANT[p.channel] ?? 'neutral'}>
+                  {p.channel.toUpperCase()}
+                </Badge>
+                {p.referenceNo && (
+                  <span className="font-mono text-xs text-text-tertiary">
+                    {p.referenceNo}
+                  </span>
+                )}
               </div>
-              <span className="font-medium">{formatCurrencyCompact(p.amountPesewas)}</span>
+              <span className="font-medium">
+                {formatCurrencyCompact(p.amountPesewas)}
+              </span>
             </div>
           ))}
           <div className="mt-1 flex justify-between text-sm text-text-secondary">
@@ -207,16 +308,43 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
             <span>{formatCurrencyCompact(detail.changePesewas)}</span>
           </div>
         </div>
+
         {detail.notes && (
           <div className="rounded-lg bg-cream px-4 py-3 text-sm text-text-secondary">
-            <span className="font-medium">Notes: </span>{detail.notes}
+            <span className="font-medium">Notes: </span>
+            {detail.notes}
           </div>
         )}
+
         <div className="flex gap-3 pt-1">
-          <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Close</Button>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 justify-center"
+          >
+            Close
+          </Button>
+          {!isVoided && receiptData && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                void print();
+              }}
+              leftIcon={isPrinting ? undefined : <Printer size={14} />}
+              isLoading={isPrinting}
+              disabled={isPrinting}
+              className="flex-1 justify-center"
+            >
+              {isPrinting ? 'Preparing...' : 'Print receipt'}
+            </Button>
+          )}
           {showVoidButton && (
-            <Button variant="danger" onClick={() => { onClose(); onVoid(detail.id); }} className="flex-1 justify-center">
-              Void transaction
+            <Button
+              variant="danger"
+              onClick={handleVoidClick}
+              className="flex-1 justify-center"
+            >
+              Void
             </Button>
           )}
         </div>

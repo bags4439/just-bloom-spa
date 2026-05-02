@@ -15,7 +15,6 @@ export function useSession(): void {
     sessionService.setHandlers(
       () => lock(),
       () => {
-        // Warning handler — the LockScreen component reads session status
         useSessionStore.setState({ status: 'warning' });
       },
     );
@@ -29,14 +28,23 @@ export function useSession(): void {
     ];
 
     const handleActivity = (): void => {
+      // Critical: do NOT reset the session timer when the screen is locked.
+      // Any interaction while locked must NOT dismiss the lock screen.
+      const { status } = useSessionStore.getState();
+      if (status === 'locked') return;
+
       recordActivity();
       sessionService.reset();
     };
 
-    activityEvents.forEach((event) => document.addEventListener(event, handleActivity));
+    activityEvents.forEach((event) =>
+      document.addEventListener(event, handleActivity),
+    );
 
     return () => {
-      activityEvents.forEach((event) => document.removeEventListener(event, handleActivity));
+      activityEvents.forEach((event) =>
+        document.removeEventListener(event, handleActivity),
+      );
     };
   }, [isAuthenticated, sessionService, lock, recordActivity]);
 }

@@ -356,6 +356,7 @@ const GeneralTab: React.FC = () => {
   const { settingsService, sessionService } = useServices();
   const user = useAuthStore(selectUser);
   const addToast = useUiStore((s) => s.addToast);
+  const setReceiptConfig = useUiStore((s) => s.setReceiptConfig);
 
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
@@ -410,11 +411,17 @@ const GeneralTab: React.FC = () => {
     async (data: z.infer<typeof receiptSchema>): Promise<void> => {
       if (!user) return;
       settingsService.updateReceiptConfig(data, user.id);
+      setReceiptConfig({
+        spaName: data.receiptSpaName,
+        tagline: data.receiptTagline,
+        address: data.receiptAddress,
+        phone: data.receiptPhone,
+      });
       addToast({ variant: 'success', message: 'Receipt settings updated' });
       loadConfig();
       setReceiptModalOpen(false);
     },
-    [settingsService, user, addToast, loadConfig],
+    [settingsService, user, addToast, loadConfig, setReceiptConfig],
   );
 
   if (!config) {
