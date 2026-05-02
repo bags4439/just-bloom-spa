@@ -49,16 +49,17 @@ async function initDb(): Promise<void> {
 
 function execSingle(sql: string, bind?: SqlValue[]): void {
   if (!db) throw new Error('Database not initialised');
-  // returnValue: 'this' is required — without it SQLite WASM OO1
-  // tries to read returnValue from an undefined internal result object.
-  db.exec(sql, { bind, returnValue: 'this' });
+  db.exec(sql, {
+    ...(bind !== undefined ? { bind } : {}),
+    returnValue: 'this',
+  });
 }
 
 function selectArrays(sql: string, bind?: SqlValue[]): SqlValue[][] {
   if (!db) throw new Error('Database not initialised');
   const resultRows: SqlValue[][] = [];
   db.exec(sql, {
-    bind,
+    ...(bind !== undefined ? { bind } : {}),
     returnValue: 'this',
     callback: (row: SqlValue[]) => {
       resultRows.push([...row]);
@@ -71,7 +72,7 @@ function selectValue(sql: string, bind?: SqlValue[]): SqlValue | null {
   if (!db) throw new Error('Database not initialised');
   const rows: SqlValue[][] = [];
   db.exec(sql, {
-    bind,
+    ...(bind !== undefined ? { bind } : {}),
     returnValue: 'this',
     callback: (row: SqlValue[]) => {
       rows.push([...row]);

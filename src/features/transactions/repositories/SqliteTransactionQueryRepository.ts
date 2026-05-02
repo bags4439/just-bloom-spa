@@ -51,9 +51,9 @@ export class SqliteTransactionQueryRepository
     );
 
     const cashSales = await this.selectScalar(
-      `SELECT COALESCE(SUM(tp.amount_pesewas), 0)
-       FROM transaction_payments tp
-       JOIN transactions t ON t.id = tp.transaction_id
+      `SELECT COALESCE(SUM(t.net_pesewas), 0)
+       FROM transactions t
+       JOIN transaction_payments tp ON tp.transaction_id = t.id
        WHERE DATE(t.ts) = ?
          AND tp.channel = 'cash'
          AND t.voided_at IS NULL

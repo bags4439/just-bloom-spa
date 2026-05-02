@@ -17,8 +17,6 @@ export class SqliteTransactionRepository
   async createSale(dto: CreateTransactionDto): Promise<void> {
     const now = this.nowIso();
 
-    // Build all inserts as one batched exec call.
-    // SQLite WASM executes multi-statement SQL atomically — no BEGIN/COMMIT needed.
     await this.run(
       `INSERT INTO transactions
          (id, ts, ts_is_manual, type, staff_id, customer_id,
