@@ -7,4 +7,7 @@ export type {
   StaffPerformanceRow,
   TopCustomerRow,
   DailyRevenuePoint,
+  MonthlyRevenuePoint,
+  ExpenseBreakdownRow,
+  YearToDateRevenue,
 } from './types/report.types';

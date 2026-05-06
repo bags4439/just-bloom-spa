@@ -1,5 +1,6 @@
-import type { Database, SqlValue } from '@/shared/types';
+import { SCHEMA_VERSION } from '@/core/database/schema';
 import type { AuditService } from '@/core/services/AuditService';
+import type { Database, SqlValue } from '@/shared/types';
 import type { AuthUser } from '@/features/auth/types';
 import { requirePermission, Permission } from '@/features/auth/types';
 import {
@@ -122,6 +123,20 @@ export class BackupService {
           } catch {
             // Skip rows that fail (e.g. constraint violations from old data)
           }
+        }
+      }
+
+      // Backups exported before schema_version was included leave this table empty
+      // after DELETE, which would cause initialiseSchema to re-apply migrations.
+      const schemaCount = await this.db.selectValueAsync(
+        'SELECT COUNT(*) FROM schema_version',
+      );
+      if (Number(schemaCount ?? 0) === 0) {
+        for (let v = 1; v <= SCHEMA_VERSION; v += 1) {
+          await this.db.execAsync(
+            'INSERT INTO schema_version (version) VALUES (?)',
+            [v],
+          );
         }
       }
     } finally {

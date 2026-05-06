@@ -15,6 +15,7 @@ export const BACKUP_VERSION = 1;
 // Tables to include in backup, in insertion order
 // (respects foreign key dependencies)
 export const BACKUP_TABLES = [
+  'schema_version',
   'app_settings',
   'users',
   'service_categories',

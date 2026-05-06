@@ -25,8 +25,17 @@ export interface CreateExpenseDto {
   notes: string | null;
 }
 
+export interface UpdateExpenseDto {
+  category: string;
+  amountPesewas: number;
+  paymentChannel: string;
+  referenceNo: string | null;
+  notes: string | null;
+}
+
 export interface ITransactionRepository {
   createSale(dto: CreateTransactionDto): Promise<void>;
   createExpense(dto: CreateExpenseDto): Promise<void>;
+  updateExpense(id: string, dto: UpdateExpenseDto): Promise<void>;
   voidTransaction(id: string, reason: string, voidedBy: string): Promise<void>;
 }

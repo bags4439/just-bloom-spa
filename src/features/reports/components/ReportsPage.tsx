@@ -169,6 +169,7 @@ const CHANNEL_COLORS: Record<string, string> = {
 const ReportsPage: React.FC = () => {
   const ranges = getDateRanges();
   const [dateRange, setDateRange] = useState<DateRange>(ranges['today']!);
+  const [chartView, setChartView] = useState<'daily' | 'monthly'>('daily');
   const { state } = useReport(dateRange);
   const { dashboardService } = useServices();
   const [closures, setClosures] = useState<DayClosure[]>([]);
@@ -277,6 +278,35 @@ const ReportsPage: React.FC = () => {
     }));
   }, [state]);
 
+  const monthlyChartData = useMemo(() => {
+    if (state.status !== 'success') return [];
+    return state.data.monthlyRevenue.map((d) => ({
+      name: d.monthLabel,
+      revenue: d.revenuePesewas / 100,
+    }));
+  }, [state]);
+
+  const handleChartViewDaily = useCallback((): void => {
+    setChartView('daily');
+  }, []);
+
+  const handleChartViewMonthly = useCallback((): void => {
+    setChartView('monthly');
+  }, []);
+
+  const handleExportExpenseBreakdown = useCallback((): void => {
+    if (state.status !== 'success' || state.data.expenseBreakdown.length === 0) return;
+    exportCsv(
+      `expenses_by_category_${dateRange.from}_${dateRange.to}`,
+      state.data.expenseBreakdown.map((r) => ({
+        Category: r.category,
+        Count: r.count,
+        Total: formatCurrencyCompact(r.totalPesewas),
+        Share: `${r.percentage}%`,
+      })),
+    );
+  }, [state, dateRange]);
+
   if (state.status === 'loading' || state.status === 'idle') {
     return (
       <div className="flex h-full items-center justify-center">
@@ -296,7 +326,31 @@ const ReportsPage: React.FC = () => {
     );
   }
 
-  const { revenue, servicePopularity, staffPerformance, topCustomers } = state.data;
+  const {
+    revenue,
+    servicePopularity,
+    staffPerformance,
+    topCustomers,
+    expenseBreakdown,
+    yearToDateRevenue,
+  } = state.data;
+
+  const activeChartData = chartView === 'daily' ? chartData : monthlyChartData;
+  const isChartEmpty =
+    activeChartData.length === 0 ||
+    activeChartData.every((d) => d.revenue === 0);
+  const chartBarSize =
+    chartView === 'monthly'
+      ? 18
+      : chartData.length > 14
+        ? 6
+        : 18;
+  const chartXInterval =
+    chartView === 'monthly'
+      ? 0
+      : chartData.length > 14
+        ? Math.floor(chartData.length / 7)
+        : 0;
 
   return (
     <div className="p-9 max-w-[1200px]">
@@ -307,7 +361,7 @@ const ReportsPage: React.FC = () => {
       />
 
       {/* Summary cards */}
-      <div className="mb-6 flex gap-4">
+      <div className="mb-6 flex flex-wrap gap-4">
         <SummaryCard
           label="Total revenue"
           value={formatCurrencyCompact(revenue.totalRevenuePesewas)}
@@ -338,6 +392,17 @@ const ReportsPage: React.FC = () => {
           iconColor={revenue.netPositionPesewas >= 0 ? '#1D4D35' : '#B91C1C'}
           positive={revenue.netPositionPesewas >= 0}
         />
+        <div className="min-w-[200px] flex-1 rounded-lg border border-border bg-white p-5">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+            {yearToDateRevenue.year} revenue to date
+          </p>
+          <p className="text-xl font-bold text-text-primary">
+            {formatCurrencyCompact(yearToDateRevenue.revenuePesewas)}
+          </p>
+          <p className="mt-1 text-xs text-text-tertiary">
+            {yearToDateRevenue.transactionCount} transactions this year
+          </p>
+        </div>
       </div>
 
       {/* Revenue chart + channel breakdown */}
@@ -345,26 +410,58 @@ const ReportsPage: React.FC = () => {
         <div className="flex-[3] rounded-lg border border-border bg-white px-6 py-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-text-primary">Daily revenue</p>
-              <p className="mt-0.5 text-xs text-text-tertiary">GHS — selected period</p>
+              <p className="text-sm font-semibold text-text-primary">
+                {chartView === 'daily' ? 'Daily revenue' : 'Monthly revenue'}
+              </p>
+              <p className="mt-0.5 text-xs text-text-tertiary">
+                GHS — selected period
+              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportRevenue} leftIcon={<Download size={12} />}>
-              Export CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex overflow-hidden rounded-lg border border-border">
+                <button
+                  type="button"
+                  onClick={handleChartViewDaily}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-semibold transition-colors',
+                    chartView === 'daily'
+                      ? 'bg-primary text-white'
+                      : 'bg-white text-text-secondary hover:bg-cream',
+                  )}
+                >
+                  Daily
+                </button>
+                <button
+                  type="button"
+                  onClick={handleChartViewMonthly}
+                  className={cn(
+                    'border-l border-border px-3 py-1.5 text-xs font-semibold transition-colors',
+                    chartView === 'monthly'
+                      ? 'bg-primary text-white'
+                      : 'bg-white text-text-secondary hover:bg-cream',
+                  )}
+                >
+                  Monthly
+                </button>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExportRevenue} leftIcon={<Download size={12} />}>
+                Export CSV
+              </Button>
+            </div>
           </div>
-          {chartData.length === 0 || chartData.every((d) => d.revenue === 0) ? (
+          {isChartEmpty ? (
             <div className="flex h-40 items-center justify-center">
               <p className="text-sm text-text-tertiary">No revenue data for this period</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} barSize={chartData.length > 14 ? 6 : 18}>
+              <BarChart data={activeChartData} barSize={chartBarSize}>
                 <XAxis
                   dataKey="name"
                   tick={{ fontSize: 11, fill: '#8A9E90' }}
                   axisLine={false}
                   tickLine={false}
-                  interval={chartData.length > 14 ? Math.floor(chartData.length / 7) : 0}
+                  interval={chartXInterval}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: '#8A9E90' }}
@@ -482,6 +579,67 @@ const ReportsPage: React.FC = () => {
           </table>
         )}
       </div>
+
+      {/* Expense breakdown */}
+      {expenseBreakdown.length > 0 && (
+        <div className="mb-6 rounded-lg border border-border bg-white">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <h2 className="text-sm font-semibold text-text-primary">
+              Expenses by category
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExpenseBreakdown}
+              leftIcon={<Download size={12} />}
+            >
+              Export CSV
+            </Button>
+          </div>
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-cream">
+                {['Category', 'Transactions', 'Total', 'Share'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {expenseBreakdown.map((row) => (
+                <tr key={row.category} className="border-t border-border">
+                  <td className="px-5 py-3 font-medium text-text-primary">
+                    {row.category}
+                  </td>
+                  <td className="px-5 py-3 text-text-secondary">
+                    {row.count}
+                  </td>
+                  <td className="px-5 py-3 font-semibold text-red-600">
+                    {formatCurrencyCompact(row.totalPesewas)}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-cream-dark">
+                        <div
+                          className="h-full rounded-full bg-red-400"
+                          style={{ width: `${row.percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-text-tertiary">
+                        {row.percentage}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Staff performance */}
       <div className="mb-6 rounded-lg border border-border bg-white">

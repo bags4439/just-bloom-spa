@@ -1,5 +1,5 @@
 import { BaseRepository } from '@/core/repositories/BaseRepository';
-import type { Database, SqlValue } from '@/shared/types';
+import type { Database } from '@/shared/types';
 import type {
   RevenueReport,
   RevenueByChannel,
@@ -7,6 +7,9 @@ import type {
   StaffPerformanceRow,
   TopCustomerRow,
   DailyRevenuePoint,
+  MonthlyRevenuePoint,
+  ExpenseBreakdownRow,
+  YearToDateRevenue,
 } from '../types/report.types';
 import type { IReportRepository } from './IReportRepository';
 
@@ -233,5 +236,103 @@ export class SqliteReportRepository
       totalSpendPesewas: this.toNumber(row[3]),
       loyaltyPoints: this.toNumber(row[4]),
     }));
+  }
+
+  async getMonthlyRevenue(from: string, to: string): Promise<MonthlyRevenuePoint[]> {
+    const rows = await this.selectAll(
+      `SELECT
+         strftime('%Y-%m', ts) AS month,
+         COALESCE(SUM(net_pesewas), 0) AS rev
+       FROM transactions
+       WHERE type = 'sale'
+         AND voided_at IS NULL
+         AND DATE(ts) >= ? AND DATE(ts) <= ?
+       GROUP BY strftime('%Y-%m', ts)
+       ORDER BY month ASC`,
+      [from, to],
+    );
+
+    return rows.map((row) => {
+      const month = this.toString(row[0]);
+      const parts = month.split('-');
+      const year = Number(parts[0]);
+      const mon = Number(parts[1]);
+      const date = new Date(
+        Number.isFinite(year) && Number.isFinite(mon) ? year : new Date().getFullYear(),
+        Number.isFinite(mon) ? mon - 1 : 0,
+        1,
+      );
+      const monthLabel = date.toLocaleDateString('en-GB', {
+        month: 'short',
+        year: 'numeric',
+      });
+      return {
+        month,
+        monthLabel,
+        revenuePesewas: this.toNumber(row[1]),
+      };
+    });
+  }
+
+  async getExpenseBreakdown(
+    from: string,
+    to: string,
+  ): Promise<ExpenseBreakdownRow[]> {
+    const totalRow = await this.selectOne(
+      `SELECT COALESCE(SUM(amount_pesewas), 0)
+       FROM expenses
+       WHERE DATE(ts) >= ? AND DATE(ts) <= ?`,
+      [from, to],
+    );
+    const total = this.toNumber(totalRow?.[0] ?? 0);
+
+    const rows = await this.selectAll(
+      `SELECT
+         category,
+         COALESCE(SUM(amount_pesewas), 0) AS total,
+         COUNT(*) AS cnt
+       FROM expenses
+       WHERE DATE(ts) >= ? AND DATE(ts) <= ?
+       GROUP BY category
+       ORDER BY total DESC`,
+      [from, to],
+    );
+
+    return rows.map((row) => ({
+      category: this.toString(row[0]),
+      totalPesewas: this.toNumber(row[1]),
+      count: this.toNumber(row[2]),
+      percentage:
+        total > 0 ? Math.round((this.toNumber(row[1]) / total) * 100) : 0,
+    }));
+  }
+
+  async getYearToDateRevenue(): Promise<YearToDateRevenue> {
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+
+    const revenue = await this.selectScalar(
+      `SELECT COALESCE(SUM(net_pesewas), 0)
+       FROM transactions
+       WHERE type = 'sale'
+         AND voided_at IS NULL
+         AND DATE(ts) >= ?`,
+      [yearStart],
+    );
+
+    const count = await this.selectScalar(
+      `SELECT COUNT(*)
+       FROM transactions
+       WHERE type = 'sale'
+         AND voided_at IS NULL
+         AND DATE(ts) >= ?`,
+      [yearStart],
+    );
+
+    return {
+      revenuePesewas: this.toNumber(revenue ?? 0),
+      transactionCount: this.toNumber(count ?? 0),
+      year,
+    };
   }
 }

@@ -3,6 +3,7 @@ import type { Database } from '@/shared/types';
 import type {
   CreateTransactionDto,
   CreateExpenseDto,
+  UpdateExpenseDto,
   ITransactionRepository,
 } from './ITransactionRepository';
 
@@ -86,6 +87,24 @@ export class SqliteTransactionRepository
         dto.notes,
         now,
         now,
+      ],
+    );
+  }
+
+  async updateExpense(id: string, dto: UpdateExpenseDto): Promise<void> {
+    await this.run(
+      `UPDATE expenses
+       SET category = ?, amount_pesewas = ?, payment_channel = ?,
+           reference_no = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        dto.category,
+        dto.amountPesewas,
+        dto.paymentChannel,
+        dto.referenceNo,
+        dto.notes,
+        this.nowIso(),
+        id,
       ],
     );
   }

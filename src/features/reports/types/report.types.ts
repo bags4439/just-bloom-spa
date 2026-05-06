@@ -50,11 +50,33 @@ export interface DailyRevenuePoint {
   revenuePesewas: number;
 }
 
+export interface MonthlyRevenuePoint {
+  month: string;
+  monthLabel: string;
+  revenuePesewas: number;
+}
+
+export interface ExpenseBreakdownRow {
+  category: string;
+  totalPesewas: number;
+  count: number;
+  percentage: number;
+}
+
+export interface YearToDateRevenue {
+  revenuePesewas: number;
+  transactionCount: number;
+  year: number;
+}
+
 export interface FullReport {
   dateRange: DateRange;
   revenue: RevenueReport;
   dailyRevenue: DailyRevenuePoint[];
+  monthlyRevenue: MonthlyRevenuePoint[];
   servicePopularity: ServicePopularityRow[];
   staffPerformance: StaffPerformanceRow[];
   topCustomers: TopCustomerRow[];
+  expenseBreakdown: ExpenseBreakdownRow[];
+  yearToDateRevenue: YearToDateRevenue;
 }

@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { Search, X, ChevronRight, Printer } from 'lucide-react';
+import { Search, X, ChevronRight, Printer, Pencil } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,6 +31,7 @@ import type {
   OtherIncomeSummary,
 } from '../types';
 import { PaymentChannel, TransactionStatus } from '../types';
+import { CashFlowEditModal } from './CashFlowEditModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -537,6 +538,7 @@ const ExpensesTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('today');
   const [search, setSearch] = useState('');
+  const [editingEntry, setEditingEntry] = useState<ExpenseSummary | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     setIsLoading(true);
@@ -567,6 +569,13 @@ const ExpensesTab: React.FC = () => {
     [filtered],
   );
 
+  const handleExpenseRowEditClick = useCallback(
+    (entry: ExpenseSummary) => (): void => {
+      setEditingEntry(entry);
+    },
+    [],
+  );
+
   return (
     <>
       <FilterBar
@@ -591,8 +600,8 @@ const ExpensesTab: React.FC = () => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-cream">
-                  {['Time', 'Category', 'Amount', 'Channel', 'Reference', 'Staff', 'Notes'].map((h) => (
-                    <th key={h} className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary">{h}</th>
+                  {['Time', 'Category', 'Amount', 'Channel', 'Reference', 'Staff', 'Notes', ''].map((h) => (
+                    <th key={h === '' ? 'actions' : h} className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -606,6 +615,16 @@ const ExpensesTab: React.FC = () => {
                     <td className="px-5 py-3 font-mono text-xs text-text-tertiary">{e.referenceNo ?? '—'}</td>
                     <td className="px-5 py-3 text-text-secondary">{e.staffName}</td>
                     <td className="max-w-[160px] truncate px-5 py-3 text-text-secondary">{e.notes ?? '—'}</td>
+                    <td className="px-5 py-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExpenseRowEditClick(e)}
+                        leftIcon={<Pencil size={12} />}
+                      >
+                        Edit
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -613,6 +632,18 @@ const ExpensesTab: React.FC = () => {
           </div>
         )}
       </div>
+      {editingEntry && (
+        <CashFlowEditModal
+          isOpen={true}
+          onClose={() => setEditingEntry(null)}
+          onSuccess={() => {
+            void load();
+            setEditingEntry(null);
+          }}
+          entry={editingEntry}
+          type="expense"
+        />
+      )}
     </>
   );
 };
@@ -626,6 +657,7 @@ const OtherIncomeTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('today');
   const [search, setSearch] = useState('');
+  const [editingEntry, setEditingEntry] = useState<OtherIncomeSummary | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     setIsLoading(true);
@@ -656,6 +688,13 @@ const OtherIncomeTab: React.FC = () => {
     [filtered],
   );
 
+  const handleOtherIncomeRowEditClick = useCallback(
+    (entry: OtherIncomeSummary) => (): void => {
+      setEditingEntry(entry);
+    },
+    [],
+  );
+
   return (
     <>
       <FilterBar
@@ -680,8 +719,8 @@ const OtherIncomeTab: React.FC = () => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-cream">
-                  {['Time', 'Category', 'Amount', 'Channel', 'Reference', 'Staff', 'Notes'].map((h) => (
-                    <th key={h} className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary">{h}</th>
+                  {['Time', 'Category', 'Amount', 'Channel', 'Reference', 'Staff', 'Notes', ''].map((h) => (
+                    <th key={h === '' ? 'actions' : h} className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -695,6 +734,16 @@ const OtherIncomeTab: React.FC = () => {
                     <td className="px-5 py-3 font-mono text-xs text-text-tertiary">{e.referenceNo ?? '—'}</td>
                     <td className="px-5 py-3 text-text-secondary">{e.staffName}</td>
                     <td className="max-w-[160px] truncate px-5 py-3 text-text-secondary">{e.notes ?? '—'}</td>
+                    <td className="px-5 py-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOtherIncomeRowEditClick(e)}
+                        leftIcon={<Pencil size={12} />}
+                      >
+                        Edit
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -702,6 +751,18 @@ const OtherIncomeTab: React.FC = () => {
           </div>
         )}
       </div>
+      {editingEntry && (
+        <CashFlowEditModal
+          isOpen={true}
+          onClose={() => setEditingEntry(null)}
+          onSuccess={() => {
+            void load();
+            setEditingEntry(null);
+          }}
+          entry={editingEntry}
+          type="other_income"
+        />
+      )}
     </>
   );
 };

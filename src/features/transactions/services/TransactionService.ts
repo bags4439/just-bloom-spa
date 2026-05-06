@@ -4,9 +4,16 @@ import { UserRole } from '@/features/auth/types';
 import type { ICustomerRepository } from '@/features/customers/repositories/ICustomerRepository';
 import { VoidWindowExpiredError, InsufficientPermissionError, NotFoundError } from '@/shared/types/errors';
 import type { AuthUser } from '@/features/auth/types';
-import type { IOtherIncomeRepository } from '../repositories/IOtherIncomeRepository';
+import type {
+  IOtherIncomeRepository,
+  UpdateOtherIncomeDto,
+} from '../repositories/IOtherIncomeRepository';
 import type { ITransactionQueryRepository } from '../repositories/ITransactionQueryRepository';
-import type { ITransactionRepository, CreateExpenseDto } from '../repositories/ITransactionRepository';
+import type {
+  ITransactionRepository,
+  CreateExpenseDto,
+  UpdateExpenseDto,
+} from '../repositories/ITransactionRepository';
 import type { SpaService } from '@/features/spa-services/types';
 import type { RecordOtherIncomeInput } from '../types';
 
@@ -213,6 +220,50 @@ export class TransactionService {
         category: input.category,
         amountPesewas: input.amountPesewas,
         channel: input.paymentChannel,
+      },
+    });
+  }
+
+  async updateExpense(
+    id: string,
+    dto: UpdateExpenseDto,
+    actorId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.transactionRepo.updateExpense(id, dto);
+
+    this.auditService.log({
+      actorId,
+      sessionId,
+      action: 'EXPENSE_UPDATED',
+      entityType: 'expense',
+      entityId: id,
+      metadata: {
+        category: dto.category,
+        amountPesewas: dto.amountPesewas,
+        paymentChannel: dto.paymentChannel,
+      },
+    });
+  }
+
+  async updateOtherIncome(
+    id: string,
+    dto: UpdateOtherIncomeDto,
+    actorId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.otherIncomeRepo.update(id, dto);
+
+    this.auditService.log({
+      actorId,
+      sessionId,
+      action: 'OTHER_INCOME_UPDATED',
+      entityType: 'other_income',
+      entityId: id,
+      metadata: {
+        category: dto.category,
+        amountPesewas: dto.amountPesewas,
+        paymentChannel: dto.paymentChannel,
       },
     });
   }

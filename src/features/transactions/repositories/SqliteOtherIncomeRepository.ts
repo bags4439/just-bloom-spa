@@ -1,7 +1,7 @@
 import { BaseRepository } from '@/core/repositories/BaseRepository';
 import type { Database, SqlValue } from '@/shared/types';
 import type { OtherIncomeSummary } from '../types';
-import type { IOtherIncomeRepository } from './IOtherIncomeRepository';
+import type { IOtherIncomeRepository, UpdateOtherIncomeDto } from './IOtherIncomeRepository';
 
 export class SqliteOtherIncomeRepository
   extends BaseRepository
@@ -43,6 +43,24 @@ export class SqliteOtherIncomeRepository
       [
         id, dto.ts, dto.staffId, dto.category, dto.amountPesewas,
         dto.paymentChannel, dto.referenceNo, dto.notes, now, now,
+      ],
+    );
+  }
+
+  async update(id: string, dto: UpdateOtherIncomeDto): Promise<void> {
+    await this.run(
+      `UPDATE other_income
+       SET category = ?, amount_pesewas = ?, payment_channel = ?,
+           reference_no = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        dto.category,
+        dto.amountPesewas,
+        dto.paymentChannel,
+        dto.referenceNo,
+        dto.notes,
+        this.nowIso(),
+        id,
       ],
     );
   }
