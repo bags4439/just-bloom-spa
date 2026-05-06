@@ -1,10 +1,18 @@
 import bcrypt from 'bcryptjs';
 
-import { DuplicateError, NotFoundError, ValidationError } from '@/shared/types/errors';
-import type { ChangePasswordDto, CreateUserDto, LoginCredentials, UserRecord } from '@/features/auth/types';
+import {
+  DuplicateError,
+  NotFoundError,
+  ValidationError,
+} from '@/shared/types/errors';
+import type {
+  ChangePasswordDto,
+  CreateUserDto,
+  LoginCredentials,
+  UserRecord,
+} from '@/features/auth/types';
 import { UserRole } from '@/features/auth/types';
 import type { IUserRepository } from '@/features/auth/repositories/IUserRepository';
-
 import type { AuditService } from './AuditService';
 
 const BCRYPT_ROUNDS = 12;
@@ -16,8 +24,17 @@ export class AuthService {
     private readonly auditService: AuditService,
   ) {}
 
-  async login(credentials: LoginCredentials, sessionId: string): Promise<UserRecord> {
+  async getSuperOwnerId(): Promise<string | null> {
+    const superOwner = await this.userRepo.findSuperOwner();
+    return superOwner?.id ?? null;
+  }
+
+  async login(
+    credentials: LoginCredentials,
+    sessionId: string,
+  ): Promise<UserRecord & { isSuperOwner: boolean }> {
     const user = await this.userRepo.findByUsername(credentials.username);
+    const superOwner = await this.userRepo.findSuperOwner();
 
     if (!user || !user.isActive) {
       this.auditService.log({
@@ -31,7 +48,10 @@ export class AuthService {
       throw new ValidationError('Invalid username or password');
     }
 
-    const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+    const isValid = await bcrypt.compare(
+      credentials.password,
+      user.passwordHash,
+    );
     if (!isValid) {
       this.auditService.log({
         sessionId,
@@ -49,7 +69,10 @@ export class AuthService {
       entityId: user.id,
     });
 
-    return user;
+    return {
+      ...user,
+      isSuperOwner: superOwner?.id === user.id,
+    };
   }
 
   async logout(userId: string, sessionId: string): Promise<void> {
@@ -62,7 +85,10 @@ export class AuthService {
     });
   }
 
-  async changePassword(dto: ChangePasswordDto, sessionId: string): Promise<void> {
+  async changePassword(
+    dto: ChangePasswordDto,
+    sessionId: string,
+  ): Promise<void> {
     if (dto.newPassword.length < MIN_PASSWORD_LENGTH) {
       throw new ValidationError(
         `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
@@ -71,6 +97,11 @@ export class AuthService {
 
     const user = await this.userRepo.findById(dto.userId);
     if (!user) throw new NotFoundError('User', dto.userId);
+
+    const isValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new ValidationError('Current password is incorrect');
+    }
 
     const hash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
     await this.userRepo.updatePasswordHash(dto.userId, hash);
@@ -85,7 +116,37 @@ export class AuthService {
     });
   }
 
-  async createUser(dto: CreateUserDto, sessionId: string): Promise<UserRecord> {
+  async changePasswordForced(
+    userId: string,
+    newPassword: string,
+    sessionId: string,
+  ): Promise<void> {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw new ValidationError(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      );
+    }
+
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new NotFoundError('User', userId);
+
+    const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.userRepo.updatePasswordHash(userId, hash);
+    await this.userRepo.setMustChangePassword(userId, false);
+
+    this.auditService.log({
+      actorId: userId,
+      sessionId,
+      action: 'PASSWORD_CHANGED_FORCED',
+      entityType: 'user',
+      entityId: userId,
+    });
+  }
+
+  async createUser(
+    dto: CreateUserDto,
+    sessionId: string,
+  ): Promise<UserRecord> {
     const existing = await this.userRepo.findByUsername(dto.username);
     if (existing) throw new DuplicateError('user', 'username');
 
@@ -126,7 +187,13 @@ export class AuthService {
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await this.userRepo.create(
-      { name, username, password, role: UserRole.OWNER, createdBy: 'system' },
+      {
+        name,
+        username,
+        password,
+        role: UserRole.OWNER,
+        createdBy: 'system',
+      },
       hash,
     );
 

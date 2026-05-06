@@ -18,7 +18,7 @@ export class BackupService {
   // ── Export ──────────────────────────────────────────────────────────────────
 
   async exportBackup(actor: AuthUser, sessionId: string): Promise<BackupFile> {
-    requirePermission(actor.role, Permission.EXPORT_DATA);
+    requirePermission(actor.role, Permission.EXPORT_DATA, actor.isSuperOwner);
 
     const tables: BackupTable[] = [];
 
@@ -76,7 +76,7 @@ export class BackupService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<void> {
-    requirePermission(actor.role, Permission.RESTORE_DATA);
+    requirePermission(actor.role, Permission.RESTORE_DATA, actor.isSuperOwner);
 
     if (backup.version !== BACKUP_VERSION) {
       throw new Error(

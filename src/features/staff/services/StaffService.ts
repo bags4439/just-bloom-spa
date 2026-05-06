@@ -24,17 +24,14 @@ export class StaffService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<UserRecord> {
-    // Only managers and owners can create staff
-    requirePermission(actor.role, Permission.MANAGE_STAFF);
+    requirePermission(actor.role, Permission.MANAGE_STAFF, actor.isSuperOwner);
 
-    // Only owners can create managers
-    if (dto.role === UserRole.MANAGER && actor.role !== UserRole.OWNER) {
-      throw new InsufficientPermissionError('create a manager account');
+    if (dto.role === UserRole.OWNER && !actor.isSuperOwner) {
+      throw new InsufficientPermissionError('create an owner account');
     }
 
-    // Nobody can create an owner via this flow
-    if (dto.role === UserRole.OWNER) {
-      throw new InsufficientPermissionError('create an owner account');
+    if (dto.role === UserRole.MANAGER && actor.role !== UserRole.OWNER) {
+      throw new InsufficientPermissionError('create a manager account');
     }
 
     if (dto.password.length < MIN_PASSWORD_LENGTH) {
@@ -67,17 +64,22 @@ export class StaffService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<void> {
-    requirePermission(actor.role, Permission.MANAGE_STAFF);
+    requirePermission(actor.role, Permission.MANAGE_STAFF, actor.isSuperOwner);
 
     const target = await this.userRepo.findById(userId);
     if (!target) throw new NotFoundError('User', userId);
 
-    // Managers cannot disable other managers or owners
-    if (
-      actor.role === UserRole.MANAGER &&
-      (target.role === UserRole.MANAGER || target.role === UserRole.OWNER)
-    ) {
-      throw new InsufficientPermissionError('disable a manager or owner account');
+    if (!actor.isSuperOwner) {
+      if (
+        target.role === UserRole.OWNER ||
+        (target.role === UserRole.MANAGER && actor.role === UserRole.MANAGER)
+      ) {
+        throw new InsufficientPermissionError('disable this account');
+      }
+    }
+
+    if (actor.isSuperOwner && target.id === actor.id) {
+      throw new InsufficientPermissionError('disable your own account');
     }
 
     await this.userRepo.setActive(userId, isActive);
@@ -97,7 +99,7 @@ export class StaffService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<void> {
-    requirePermission(actor.role, Permission.MANAGE_STAFF);
+    requirePermission(actor.role, Permission.MANAGE_STAFF, actor.isSuperOwner);
 
     if (temporaryPassword.length < MIN_PASSWORD_LENGTH) {
       throw new ValidationError(
@@ -108,9 +110,14 @@ export class StaffService {
     const target = await this.userRepo.findById(userId);
     if (!target) throw new NotFoundError('User', userId);
 
+    if (target.role === UserRole.OWNER && !actor.isSuperOwner) {
+      throw new InsufficientPermissionError("reset an owner's password");
+    }
+
     if (
-      actor.role === UserRole.MANAGER &&
-      (target.role === UserRole.MANAGER || target.role === UserRole.OWNER)
+      !actor.isSuperOwner &&
+      target.role === UserRole.MANAGER &&
+      actor.role === UserRole.MANAGER
     ) {
       throw new InsufficientPermissionError("reset another manager's password");
     }

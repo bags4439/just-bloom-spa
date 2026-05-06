@@ -33,10 +33,11 @@ export const Receipt = React.forwardRef<HTMLDivElement, Props>(
       ref={ref}
       style={{
         width: '80mm',
+        boxSizing: 'border-box',
         fontFamily: "'DM Sans', Arial, sans-serif",
         fontSize: '12px',
         color: '#1A2920',
-        padding: '12px 16px',
+        padding: '12px 8mm',
         background: 'white',
       }}
     >

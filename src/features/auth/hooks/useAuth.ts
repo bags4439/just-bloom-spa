@@ -4,7 +4,7 @@ import { useServices } from '@/core/ServiceContainerContext';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionStore } from '@/stores/sessionStore';
 
-import type { LoginCredentials, ChangePasswordDto, CreateUserDto } from '../types';
+import type { LoginCredentials, CreateUserDto } from '../types';
 
 export function useAuth() {
   const { authService, sessionService } = useServices();
@@ -22,6 +22,7 @@ export function useAuth() {
           username: userRecord.username,
           role: userRecord.role,
           mustChangePassword: userRecord.mustChangePassword,
+          isSuperOwner: userRecord.isSuperOwner,
         },
         newSessionId,
       );
@@ -41,18 +42,45 @@ export function useAuth() {
   const unlockSession = useCallback(
     async (credentials: LoginCredentials): Promise<void> => {
       const currentSessionId = sessionId ?? crypto.randomUUID();
-      await authService.login(credentials, currentSessionId);
+      const userRecord = await authService.login(credentials, currentSessionId);
+      setUser(
+        {
+          id: userRecord.id,
+          name: userRecord.name,
+          username: userRecord.username,
+          role: userRecord.role,
+          mustChangePassword: userRecord.mustChangePassword,
+          isSuperOwner: userRecord.isSuperOwner,
+        },
+        currentSessionId,
+      );
       sessionService.reset();
       unlock();
     },
-    [authService, sessionService, sessionId, unlock],
+    [authService, sessionService, sessionId, unlock, setUser],
   );
 
   const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string): Promise<void> => {
+      if (!user || !sessionId) throw new Error('Not authenticated');
+      await authService.changePassword(
+        {
+          userId: user.id,
+          currentPassword,
+          newPassword,
+          actorId: user.id,
+        },
+        sessionId,
+      );
+      setUser({ ...user, mustChangePassword: false }, sessionId);
+    },
+    [authService, user, sessionId, setUser],
+  );
+
+  const changePasswordForced = useCallback(
     async (newPassword: string): Promise<void> => {
       if (!user || !sessionId) throw new Error('Not authenticated');
-      const dto: ChangePasswordDto = { userId: user.id, newPassword, actorId: user.id };
-      await authService.changePassword(dto, sessionId);
+      await authService.changePasswordForced(user.id, newPassword, sessionId);
       setUser({ ...user, mustChangePassword: false }, sessionId);
     },
     [authService, user, sessionId, setUser],
@@ -66,5 +94,13 @@ export function useAuth() {
     [authService, sessionId],
   );
 
-  return { login, logout, unlockSession, changePassword, createUser, user };
+  return {
+    login,
+    logout,
+    unlockSession,
+    changePassword,
+    changePasswordForced,
+    createUser,
+    user,
+  };
 }

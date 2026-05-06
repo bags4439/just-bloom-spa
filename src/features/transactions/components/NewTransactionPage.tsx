@@ -677,6 +677,7 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
   const receiptConfig = useUiStore((s) => s.receiptConfig);
   const currentUser = useAuthStore(selectUser);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const print = useReactToPrint({
     contentRef: receiptRef as React.RefObject<HTMLElement>,
@@ -711,8 +712,8 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
   return (
     <div className="max-w-md">
       {/* Hidden receipt for printing */}
-      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-        <Receipt ref={receiptRef} data={receiptData} />
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }}>
+        {receiptData && <Receipt ref={receiptRef} data={receiptData} />}
       </div>
 
       <Card padding="none" className="overflow-hidden">
@@ -765,11 +766,19 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
           <div className="mt-5 flex gap-3">
             <Button
               variant="outline"
-              onClick={() => print()}
-              leftIcon={<Printer size={14} />}
+              onClick={() => {
+                setIsPrinting(true);
+                setTimeout(() => {
+                  print();
+                  setTimeout(() => setIsPrinting(false), 1000);
+                }, 50);
+              }}
+              leftIcon={isPrinting ? undefined : <Printer size={14} />}
+              isLoading={isPrinting}
+              disabled={isPrinting || !receiptData}
               className="flex-1 justify-center"
             >
-              Print receipt
+              {isPrinting ? 'Preparing...' : 'Print receipt'}
             </Button>
             <Button onClick={onDone} className="flex-1 justify-center">
               Done

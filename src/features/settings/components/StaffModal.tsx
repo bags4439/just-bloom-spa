@@ -8,7 +8,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Modal } from '@/shared/components/ui/Modal';
 import { useServices } from '@/core/ServiceContainerContext';
-import { useAuthStore, selectUser, selectSessionId } from '@/stores/authStore';
+import { useAuthStore, selectUser, selectSessionId, selectIsSuperOwner } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { UserRole } from '@/features/auth/types';
 
@@ -18,7 +18,7 @@ const schema = z.object({
     .string()
     .min(3, 'Username must be at least 3 characters')
     .regex(/^[a-z0-9_]+$/, 'Lowercase letters, numbers, and underscores only'),
-  role: z.enum([UserRole.STAFF, UserRole.MANAGER]),
+  role: z.enum([UserRole.STAFF, UserRole.MANAGER, UserRole.OWNER]),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters'),
@@ -35,6 +35,7 @@ export const StaffModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   const { staffService } = useServices();
   const user = useAuthStore(selectUser);
   const sessionId = useAuthStore(selectSessionId);
+  const isSuperOwner = useAuthStore(selectIsSuperOwner);
   const addToast = useUiStore((s) => s.addToast);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -62,7 +63,16 @@ export const StaffModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
           user,
           sessionId,
         );
-        addToast({ variant: 'success', message: `${data.role === UserRole.MANAGER ? 'Manager' : 'Staff'} account created successfully` });
+        addToast({
+          variant: 'success',
+          message: `${
+            data.role === UserRole.OWNER
+              ? 'Owner'
+              : data.role === UserRole.MANAGER
+                ? 'Manager'
+                : 'Staff'
+          } account created successfully`,
+        });
         handleClose();
         onSuccess();
       } catch (err) {
@@ -99,12 +109,14 @@ export const StaffModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
           >
             <option value={UserRole.STAFF}>Staff</option>
             <option value={UserRole.MANAGER}>Manager</option>
+            {isSuperOwner && <option value={UserRole.OWNER}>Owner</option>}
           </select>
         </div>
 
         <Input
           label="Temporary password"
           type={showPassword ? 'text' : 'password'}
+          autoComplete="new-password"
           hint="Staff will be required to change this on first login"
           error={errors.password?.message}
           rightElement={

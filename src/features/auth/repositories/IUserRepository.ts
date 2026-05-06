@@ -5,6 +5,7 @@ export interface IUserRepository {
   findByUsername(username: string): Promise<UserRecord | null>;
   findAll(): Promise<UserRecord[]>;
   findActive(): Promise<UserRecord[]>;
+  findSuperOwner(): Promise<UserRecord | null>;
   countAll(): Promise<number>;
   create(dto: CreateUserDto, passwordHash: string): Promise<UserRecord>;
   updatePasswordHash(userId: string, passwordHash: string): Promise<void>;

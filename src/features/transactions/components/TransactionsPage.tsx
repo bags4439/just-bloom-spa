@@ -150,13 +150,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       }
     `,
-    onBeforePrint: () => {
-      setIsPrinting(true);
-      return Promise.resolve();
-    },
-    onAfterPrint: () => {
-      setIsPrinting(false);
-    },
   });
 
   const handleVoidClick = useCallback((): void => {
@@ -208,11 +201,9 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
       description={formatDateTime(detail.timestamp)}
       size="md"
     >
-      {receiptData && (
-        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-          <Receipt ref={receiptRef} data={receiptData} />
-        </div>
-      )}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }}>
+        {receiptData && <Receipt ref={receiptRef} data={receiptData} />}
+      </div>
 
       <div className="flex flex-col gap-4">
         {isVoided && (
@@ -328,7 +319,11 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
             <Button
               variant="outline"
               onClick={() => {
-                void print();
+                setIsPrinting(true);
+                setTimeout(() => {
+                  print();
+                  setTimeout(() => setIsPrinting(false), 1000);
+                }, 50);
               }}
               leftIcon={isPrinting ? undefined : <Printer size={14} />}
               isLoading={isPrinting}

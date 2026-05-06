@@ -67,7 +67,8 @@ function AuthenticatedApp(): React.ReactElement {
           <Route
             path={ROUTES.SETTINGS}
             element={
-              user && hasPermission(user.role, Permission.MANAGE_SETTINGS)
+              user &&
+              hasPermission(user.role, Permission.MANAGE_SETTINGS, user.isSuperOwner)
                 ? <SettingsPage />
                 : <Navigate to={ROUTES.DASHBOARD} replace />
             }

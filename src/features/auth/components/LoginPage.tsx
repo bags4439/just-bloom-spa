@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, KeyRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,10 +13,10 @@ import { cn } from '@/shared/utils/cn';
 import { useAuth } from '../hooks/useAuth';
 import type { UserRecord, UserRole } from '../types';
 
-/** Public fields only — never keep password hashes in React state for the picker. */
-type LoginProfileUser = Pick<UserRecord, 'id' | 'name' | 'username' | 'role' | 'isActive'>;
+/** Omit password hash from in-memory login picker state */
+type GridUser = Pick<UserRecord, 'id' | 'name' | 'username' | 'role' | 'isActive'>;
 
-function toLoginProfile(u: UserRecord): LoginProfileUser {
+function toGridUser(u: UserRecord): GridUser {
   return {
     id: u.id,
     name: u.name,
@@ -54,15 +54,7 @@ const LotusIcon: React.FC<{ size?: number }> = ({ size = 40 }) => (
   </svg>
 );
 
-// ─── Role colours ─────────────────────────────────────────────────────────────
-
-const ROLE_STYLES: Record<UserRole, { bg: string; text: string; label: string }> = {
-  owner: { bg: 'bg-accent/10', text: 'text-accent', label: 'Owner' },
-  manager: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Manager' },
-  staff: { bg: 'bg-primary-pale', text: 'text-primary', label: 'Staff' },
-};
-
-// ─── Avatar colour based on name ──────────────────────────────────────────────
+// ─── Avatar colour ────────────────────────────────────────────────────────────
 
 const AVATAR_COLOURS: ReadonlyArray<{ bg: string; text: string }> = [
   { bg: '#E4F0E9', text: '#1D4D35' },
@@ -75,18 +67,41 @@ const AVATAR_COLOURS: ReadonlyArray<{ bg: string; text: string }> = [
 function getAvatarColour(name: string): { bg: string; text: string } {
   const code = name.charCodeAt(0);
   const index = Number.isFinite(code) ? Math.abs(code) % AVATAR_COLOURS.length : 0;
-  const picked = AVATAR_COLOURS[index];
-  return picked ?? { bg: '#E4F0E9', text: '#1D4D35' };
+  return AVATAR_COLOURS[index] ?? { bg: '#E4F0E9', text: '#1D4D35' };
 }
+
+const ROLE_STYLES: Record<UserRole, { bg: string; text: string; label: string }> = {
+  owner: { bg: 'bg-accent/10', text: 'text-accent', label: 'Owner' },
+  manager: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Manager' },
+  staff: { bg: 'bg-primary-pale', text: 'text-primary', label: 'Staff' },
+};
+
+// ─── Brand header ─────────────────────────────────────────────────────────────
+
+const BrandHeader: React.FC = () => (
+  <div className="mb-10 flex flex-col items-center text-center">
+    <LotusIcon size={48} />
+    <h1
+      className="mt-3 text-2xl font-bold tracking-tight"
+      style={{ color: '#142E20' }}
+    >
+      Just Bloom Spa
+    </h1>
+    <p
+      className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+      style={{ color: '#C4962A' }}
+    >
+      Rest · Reset · Glow
+    </p>
+  </div>
+);
 
 // ─── Profile card ─────────────────────────────────────────────────────────────
 
-interface ProfileCardProps {
-  user: LoginProfileUser;
-  onSelect: (user: LoginProfileUser) => void;
-}
-
-const ProfileCard: React.FC<ProfileCardProps> = React.memo(({ user, onSelect }) => {
+const ProfileCard: React.FC<{
+  user: GridUser;
+  onSelect: (user: GridUser) => void;
+}> = React.memo(({ user, onSelect }) => {
   const colour = getAvatarColour(user.name);
   const roleStyle = ROLE_STYLES[user.role];
   const initials = user.name
@@ -111,7 +126,6 @@ const ProfileCard: React.FC<ProfileCardProps> = React.memo(({ user, onSelect }) 
       >
         {initials}
       </div>
-
       <div>
         <p className="text-sm font-semibold leading-tight text-text-primary">{user.name}</p>
         <span
@@ -129,19 +143,17 @@ const ProfileCard: React.FC<ProfileCardProps> = React.memo(({ user, onSelect }) 
 });
 ProfileCard.displayName = 'ProfileCard';
 
-// ─── Password entry view ──────────────────────────────────────────────────────
+// ─── Password entry ───────────────────────────────────────────────────────────
 
 const passwordSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
-interface PasswordEntryProps {
-  user: LoginProfileUser;
+const PasswordEntry: React.FC<{
+  user: GridUser;
   onBack: () => void;
-}
-
-const PasswordEntry: React.FC<PasswordEntryProps> = ({ user, onBack }) => {
+}> = ({ user, onBack }) => {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const colour = getAvatarColour(user.name);
@@ -157,9 +169,7 @@ const PasswordEntry: React.FC<PasswordEntryProps> = ({ user, onBack }) => {
     formState: { errors, isSubmitting },
     setError,
     resetField,
-  } = useForm<PasswordFormData>({
-    resolver: zodResolver(passwordSchema),
-  });
+  } = useForm<PasswordFormData>({ resolver: zodResolver(passwordSchema) });
 
   const onSubmit = useCallback(
     async (data: PasswordFormData): Promise<void> => {
@@ -175,7 +185,7 @@ const PasswordEntry: React.FC<PasswordEntryProps> = ({ user, onBack }) => {
     [login, user.username, setError, resetField],
   );
 
-  const handleTogglePassword = useCallback((): void => {
+  const togglePassword = useCallback((): void => {
     setShowPassword((s) => !s);
   }, []);
 
@@ -213,12 +223,107 @@ const PasswordEntry: React.FC<PasswordEntryProps> = ({ user, onBack }) => {
           type={showPassword ? 'text' : 'password'}
           placeholder="Password"
           autoFocus
-          autoComplete="current-password"
+          autoComplete="new-password"
           error={errors.password?.message}
           rightElement={
             <button
               type="button"
-              onClick={handleTogglePassword}
+              onClick={togglePassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="text-text-tertiary transition-colors hover:text-text-secondary"
+            >
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          }
+          {...register('password')}
+        />
+        <Button type="submit" size="lg" isLoading={isSubmitting} className="w-full">
+          Sign in
+        </Button>
+      </form>
+    </div>
+  );
+};
+
+// ─── Manual login (username + password) ──────────────────────────────────────
+
+const manualSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+type ManualFormData = z.infer<typeof manualSchema>;
+
+const ManualLogin: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<ManualFormData>({ resolver: zodResolver(manualSchema) });
+
+  const onSubmit = useCallback(
+    async (data: ManualFormData): Promise<void> => {
+      try {
+        await login(data);
+      } catch (err) {
+        setError('password', {
+          message:
+            err instanceof Error ? err.message : 'Invalid username or password',
+        });
+      }
+    },
+    [login, setError],
+  );
+
+  const togglePassword = useCallback((): void => {
+    setShowPassword((s) => !s);
+  }, []);
+
+  return (
+    <div className="w-full max-w-xs">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-6 flex items-center gap-1.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+      >
+        <ArrowLeft size={15} />
+        All profiles
+      </button>
+
+      <div className="mb-7 text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary-pale">
+          <KeyRound size={22} className="text-primary" />
+        </div>
+        <p className="text-lg font-bold text-text-primary">Sign in</p>
+        <p className="text-sm text-text-secondary">Enter your username and password</p>
+      </div>
+
+      <form
+        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        className="flex flex-col gap-3"
+        noValidate
+      >
+        <Input
+          label="Username"
+          placeholder="Username"
+          autoFocus
+          autoComplete="username"
+          error={errors.username?.message}
+          {...register('username')}
+        />
+        <Input
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          placeholder="Password"
+          autoComplete="new-password"
+          error={errors.password?.message}
+          rightElement={
+            <button
+              type="button"
+              onClick={togglePassword}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               className="text-text-tertiary transition-colors hover:text-text-secondary"
             >
@@ -237,22 +342,31 @@ const PasswordEntry: React.FC<PasswordEntryProps> = ({ user, onBack }) => {
 
 // ─── Main login page ──────────────────────────────────────────────────────────
 
+type LoginView = 'grid' | 'password' | 'manual';
+
 const LoginPage: React.FC = () => {
-  const { staffService } = useServices();
-  const [users, setUsers] = useState<LoginProfileUser[]>([]);
+  const { staffService, authService } = useServices();
+  const [users, setUsers] = useState<GridUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<LoginProfileUser | null>(null);
+  const [view, setView] = useState<LoginView>('grid');
+  const [selectedUser, setSelectedUser] = useState<GridUser | null>(null);
 
   useEffect(() => {
-    void staffService
-      .getAll()
-      .then((all) => {
-        const roleOrder: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
-        const active = all
-          .filter((u) => u.isActive)
-          .sort((a, b) => (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3))
-          .map(toLoginProfile);
-        setUsers(active);
+    void Promise.all([staffService.getAll(), authService.getSuperOwnerId()])
+      .then(([all, superOwnerId]) => {
+        const roleOrder: Record<string, number> = {
+          owner: 0,
+          manager: 1,
+          staff: 2,
+        };
+        const visible = all
+          .filter((u) => u.isActive && u.id !== superOwnerId)
+          .sort(
+            (a, b) =>
+              (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3),
+          )
+          .map(toGridUser);
+        setUsers(visible);
       })
       .catch(() => {
         setUsers([]);
@@ -260,37 +374,27 @@ const LoginPage: React.FC = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [staffService]);
+  }, [staffService, authService]);
 
-  const handleSelectUser = useCallback((user: LoginProfileUser): void => {
+  const handleSelectUser = useCallback((user: GridUser): void => {
     setSelectedUser(user);
+    setView('password');
   }, []);
 
   const handleBack = useCallback((): void => {
     setSelectedUser(null);
+    setView('grid');
+  }, []);
+
+  const handleOpenManual = useCallback((): void => {
+    setView('manual');
   }, []);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-cream px-6 py-12">
-      <div className="mb-10 flex flex-col items-center text-center">
-        <LotusIcon size={48} />
-        <h1
-          className="mt-3 text-2xl font-bold tracking-tight"
-          style={{ color: '#142E20' }}
-        >
-          Just Bloom Spa
-        </h1>
-        <p
-          className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
-          style={{ color: '#C4962A' }}
-        >
-          Rest · Reset · Glow
-        </p>
-      </div>
+      <BrandHeader />
 
-      {selectedUser ? (
-        <PasswordEntry user={selectedUser} onBack={handleBack} />
-      ) : (
+      {view === 'grid' && (
         <div className="w-full max-w-2xl">
           <p className="mb-5 text-center text-sm font-medium text-text-secondary">
             Who&apos;s signing in?
@@ -302,7 +406,7 @@ const LoginPage: React.FC = () => {
             </div>
           ) : users.length === 0 ? (
             <div className="rounded-xl border border-border bg-white p-8 text-center">
-              <p className="text-sm text-text-secondary">No active accounts found.</p>
+              <p className="text-sm text-text-secondary">No profiles available.</p>
             </div>
           ) : (
             <div
@@ -318,8 +422,24 @@ const LoginPage: React.FC = () => {
               ))}
             </div>
           )}
+
+          <div className="mt-8 text-center">
+            <button
+              type="button"
+              onClick={handleOpenManual}
+              className="text-xs font-medium text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline"
+            >
+              Sign in with username
+            </button>
+          </div>
         </div>
       )}
+
+      {view === 'password' && selectedUser && (
+        <PasswordEntry user={selectedUser} onBack={handleBack} />
+      )}
+
+      {view === 'manual' && <ManualLogin onBack={handleBack} />}
 
       <p className="mt-12 text-xs text-text-tertiary">
         Adenta – Rowi Junction, Accra, Ghana

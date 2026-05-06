@@ -25,5 +25,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 
 export const selectUser = (state: AuthState): AuthUser | null => state.user;
-export const selectSessionId = (state: AuthState): string | null => state.sessionId;
-export const selectIsAuthenticated = (state: AuthState): boolean => state.user !== null;
+export const selectSessionId = (state: AuthState): string | null =>
+  state.sessionId;
+export const selectIsAuthenticated = (state: AuthState): boolean =>
+  state.user !== null;
+export const selectIsSuperOwner = (state: AuthState): boolean =>
+  state.user?.isSuperOwner === true;

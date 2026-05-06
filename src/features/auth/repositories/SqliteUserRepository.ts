@@ -62,6 +62,16 @@ export class SqliteUserRepository extends BaseRepository implements IUserReposit
     return rows.map((row) => this.mapRow(row));
   }
 
+  async findSuperOwner(): Promise<UserRecord | null> {
+    const row = await this.selectOne(
+      `SELECT ${USER_COLUMNS} FROM users
+       WHERE deleted_at IS NULL
+       ORDER BY created_at ASC
+       LIMIT 1`,
+    );
+    return row ? this.mapRow(row) : null;
+  }
+
   async countAll(): Promise<number> {
     const value = await this.selectScalar(
       `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`,

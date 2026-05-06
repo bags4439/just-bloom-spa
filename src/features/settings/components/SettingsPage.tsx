@@ -12,7 +12,7 @@ import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { useServices } from '@/core/ServiceContainerContext';
-import { useAuthStore, selectUser, selectSessionId } from '@/stores/authStore';
+import { useAuthStore, selectUser, selectSessionId, selectIsSuperOwner } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/shared/utils/cn';
 import { UserRole } from '@/features/auth/types';
@@ -180,6 +180,7 @@ const StaffTab: React.FC = () => {
   const { staffService } = useServices();
   const user = useAuthStore(selectUser);
   const sessionId = useAuthStore(selectSessionId);
+  const isSuperOwnerUser = useAuthStore(selectIsSuperOwner);
   const addToast = useUiStore((s) => s.addToast);
   const canManageManagers = usePermission(Permission.MANAGE_MANAGERS);
 
@@ -223,7 +224,9 @@ const StaffTab: React.FC = () => {
 
   const canActOn = (member: UserRecord): boolean => {
     if (isCurrentUser(member)) return false;
-    if (member.role === UserRole.OWNER) return false;
+    if (member.role === UserRole.OWNER) {
+      return isSuperOwnerUser;
+    }
     if (member.role === UserRole.MANAGER && !canManageManagers) return false;
     return true;
   };

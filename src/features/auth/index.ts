@@ -5,4 +5,11 @@ export type {
   CreateUserDto,
   ChangePasswordDto,
 } from './types';
-export { UserRole, Permission, ROLE_PERMISSIONS, hasPermission, requirePermission } from './types';
+export {
+  UserRole,
+  Permission,
+  ROLE_PERMISSIONS,
+  SUPER_OWNER_PERMISSIONS,
+  hasPermission,
+  requirePermission,
+} from './types';

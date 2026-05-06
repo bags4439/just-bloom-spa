@@ -61,6 +61,7 @@ const FirstRunSetup: React.FC = () => {
             username: user.username,
             role: user.role,
             mustChangePassword: false,
+            isSuperOwner: true,
           },
           crypto.randomUUID(),
         );
@@ -108,6 +109,7 @@ const FirstRunSetup: React.FC = () => {
             <Input
               label="Password"
               type="password"
+              autoComplete="new-password"
               hint="Min 8 chars, at least one number and one special character"
               error={errors.password?.message}
               {...register('password')}
@@ -115,6 +117,7 @@ const FirstRunSetup: React.FC = () => {
             <Input
               label="Confirm password"
               type="password"
+              autoComplete="new-password"
               error={errors.confirmPassword?.message}
               {...register('confirmPassword')}
             />

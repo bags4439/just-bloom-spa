@@ -35,7 +35,7 @@ export const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
   isOpen,
   isFirstLogin = false,
 }) => {
-  const { changePassword } = useAuth();
+  const { changePasswordForced } = useAuth();
   const [isDone, setIsDone] = useState(false);
 
   const {
@@ -50,13 +50,13 @@ export const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
   const onSubmit = useCallback(
     async (data: FormData): Promise<void> => {
       try {
-        await changePassword(data.newPassword);
+        await changePasswordForced(data.newPassword);
         setIsDone(true);
       } catch (err) {
         setError('root', { message: err instanceof Error ? err.message : 'Failed to change password' });
       }
     },
-    [changePassword, setError],
+    [changePasswordForced, setError],
   );
 
   return (
@@ -85,6 +85,7 @@ export const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
           <Input
             label="New password"
             type="password"
+            autoComplete="new-password"
             autoFocus
             hint="Min 8 chars, at least one number and one special character"
             error={errors.newPassword?.message}
@@ -93,6 +94,7 @@ export const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
           <Input
             label="Confirm password"
             type="password"
+            autoComplete="new-password"
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
           />

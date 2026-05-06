@@ -56,6 +56,7 @@ export const LockScreen: React.FC = () => {
           <Input
             type={showPassword ? 'text' : 'password'}
             placeholder="Your password"
+            autoComplete="new-password"
             autoFocus
             error={errors.password?.message}
             rightElement={

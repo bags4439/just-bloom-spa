@@ -29,7 +29,7 @@ export class SpaServiceService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<SpaService> {
-    requirePermission(actor.role, Permission.MANAGE_SERVICES);
+    requirePermission(actor.role, Permission.MANAGE_SERVICES, actor.isSuperOwner);
 
     const service = await this.spaServiceRepo.create({
       ...dto,
@@ -54,7 +54,7 @@ export class SpaServiceService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<SpaService> {
-    requirePermission(actor.role, Permission.MANAGE_SERVICES);
+    requirePermission(actor.role, Permission.MANAGE_SERVICES, actor.isSuperOwner);
 
     const existing = await this.spaServiceRepo.findById(id);
     if (!existing) throw new NotFoundError('Service', id);
@@ -84,7 +84,7 @@ export class SpaServiceService {
     actor: AuthUser,
     sessionId: string,
   ): Promise<void> {
-    requirePermission(actor.role, Permission.MANAGE_SERVICES);
+    requirePermission(actor.role, Permission.MANAGE_SERVICES, actor.isSuperOwner);
 
     const existing = await this.spaServiceRepo.findById(id);
     if (!existing) throw new NotFoundError('Service', id);

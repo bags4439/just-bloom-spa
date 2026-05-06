@@ -73,6 +73,7 @@ export const ResetPasswordModal: React.FC<Props> = ({
         <Input
           label="New temporary password"
           type={showPassword ? 'text' : 'password'}
+          autoComplete="new-password"
           autoFocus
           error={errors.password?.message}
           rightElement={

@@ -16,6 +16,7 @@ export const Permission = {
   MANAGE_CUSTOMERS: 'manage_customers',
   MANAGE_STAFF: 'manage_staff',
   MANAGE_MANAGERS: 'manage_managers',
+  MANAGE_OWNERS: 'manage_owners',
   MANAGE_SERVICES: 'manage_services',
   VIEW_REPORTS: 'view_reports',
   EXPORT_REPORTS: 'export_reports',
@@ -23,6 +24,7 @@ export const Permission = {
   CLOSE_DAY: 'close_day',
   EXPORT_DATA: 'export_data',
   RESTORE_DATA: 'restore_data',
+  CHANGE_OWN_PASSWORD: 'change_own_password',
 } as const;
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
@@ -32,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_OWN_TRANSACTIONS,
     Permission.VOID_TRANSACTION,
     Permission.MANAGE_CUSTOMERS,
+    Permission.CHANGE_OWN_PASSWORD,
   ],
   [UserRole.MANAGER]: [
     Permission.RECORD_TRANSACTION,
@@ -46,16 +49,36 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.EXPORT_REPORTS,
     Permission.MANAGE_SETTINGS,
     Permission.CLOSE_DAY,
+    Permission.CHANGE_OWN_PASSWORD,
   ],
-  [UserRole.OWNER]: Object.values(Permission) as Permission[],
+  [UserRole.OWNER]: [
+    ...Object.values(Permission).filter(
+      (p) =>
+        p !== Permission.MANAGE_OWNERS &&
+        p !== Permission.RESTORE_DATA,
+    ) as Permission[],
+  ],
 };
 
-export function hasPermission(role: UserRole, permission: Permission): boolean {
+// Super owner gets ALL permissions
+export const SUPER_OWNER_PERMISSIONS: Permission[] =
+  Object.values(Permission) as Permission[];
+
+export function hasPermission(
+  role: UserRole,
+  permission: Permission,
+  isSuperOwner = false,
+): boolean {
+  if (isSuperOwner) return true;
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
-export function requirePermission(role: UserRole, permission: Permission): void {
-  if (!hasPermission(role, permission)) {
+export function requirePermission(
+  role: UserRole,
+  permission: Permission,
+  isSuperOwner = false,
+): void {
+  if (!hasPermission(role, permission, isSuperOwner)) {
     throw new Error(`Permission denied: ${permission}`);
   }
 }
@@ -66,6 +89,7 @@ export interface AuthUser {
   username: string;
   role: UserRole;
   mustChangePassword: boolean;
+  isSuperOwner: boolean;
 }
 
 export interface UserRecord extends TimeStamped, SoftDeletable {
@@ -77,6 +101,7 @@ export interface UserRecord extends TimeStamped, SoftDeletable {
   isActive: boolean;
   mustChangePassword: boolean;
   createdBy: string | null;
+  isSuperOwner?: boolean;
 }
 
 export interface LoginCredentials {
@@ -94,6 +119,7 @@ export interface CreateUserDto {
 
 export interface ChangePasswordDto {
   userId: string;
+  currentPassword: string;
   newPassword: string;
   actorId: string;
 }

@@ -5,7 +5,7 @@ import { hasPermission, type Permission } from '../types';
 export function usePermission(permission: Permission): boolean {
   const user = useAuthStore(selectUser);
   if (!user) return false;
-  return hasPermission(user.role, permission);
+  return hasPermission(user.role, permission, user.isSuperOwner);
 }
 
 export function useRequirePermission(permission: Permission): void {

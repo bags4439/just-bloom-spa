@@ -1,6 +1,7 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   BarChart3,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -12,6 +13,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/config/routes';
+import { SelfChangePasswordModal } from '@/features/auth/components/SelfChangePasswordModal';
 import { Permission } from '@/features/auth/types';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePermission } from '@/features/auth/hooks/usePermission';
@@ -97,6 +99,7 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const user = useAuthStore(selectUser);
   const { logout } = useAuth();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const canViewReports = usePermission(Permission.VIEW_REPORTS);
   const canManageSettings = usePermission(Permission.MANAGE_SETTINGS);
 
@@ -156,16 +159,33 @@ export const Sidebar: React.FC = () => {
       <div className="border-t border-white/[0.07] px-5 py-4">
         <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/40">
           {user?.role}
+          {user?.isSuperOwner ? ' · super owner' : ''}
         </div>
         <div className="text-sm font-semibold text-white">{user?.name}</div>
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          className="mt-3 flex items-center gap-1.5 text-xs text-white/35 transition-colors hover:text-white/60"
-        >
-          <LogOut size={12} />
-          Sign out
-        </button>
+
+        <div className="mt-3 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => setIsChangePasswordOpen(true)}
+            className="flex items-center gap-1.5 text-xs text-white/50 transition-colors hover:text-white/80"
+          >
+            <KeyRound size={12} />
+            Change password
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="flex items-center gap-1.5 text-xs text-white/35 transition-colors hover:text-white/60"
+          >
+            <LogOut size={12} />
+            Sign out
+          </button>
+        </div>
+
+        <SelfChangePasswordModal
+          isOpen={isChangePasswordOpen}
+          onClose={() => setIsChangePasswordOpen(false)}
+        />
       </div>
     </aside>
   );
