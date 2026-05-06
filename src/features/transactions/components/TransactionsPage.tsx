@@ -6,7 +6,6 @@ import React, {
   useRef,
 } from 'react';
 import { Search, X, ChevronRight, Printer } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,7 +15,8 @@ import { Badge, type BadgeVariant } from '@/shared/components/ui/Badge';
 import { Modal } from '@/shared/components/ui/Modal';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Receipt, type ReceiptData } from '@/shared/components/layout/Receipt';
+import type { ReceiptData } from '@/shared/components/layout/Receipt';
+import { usePrint } from '@/shared/hooks/usePrintReceipt';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { formatDateTime, formatTime } from '@/shared/utils/formatDate';
 import { useServices } from '@/core/ServiceContainerContext';
@@ -138,19 +138,8 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
   const user = useAuthStore(selectUser);
   const receiptConfig = useUiStore((s) => s.receiptConfig);
   const isVoided = detail.status === TransactionStatus.VOIDED;
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const { print } = usePrint();
   const [isPrinting, setIsPrinting] = useState(false);
-
-  const print = useReactToPrint({
-    contentRef: receiptRef as React.RefObject<HTMLElement>,
-    documentTitle: 'Just Bloom Spa — Receipt',
-    pageStyle: `
-      @page { size: 80mm auto; margin: 0; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      }
-    `,
-  });
 
   const handleVoidClick = useCallback((): void => {
     onClose();
@@ -201,10 +190,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
       description={formatDateTime(detail.timestamp)}
       size="md"
     >
-      <div style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }}>
-        {receiptData && <Receipt ref={receiptRef} data={receiptData} />}
-      </div>
-
       <div className="flex flex-col gap-4">
         {isVoided && (
           <div className="rounded-lg bg-red-50 px-4 py-3">
@@ -319,11 +304,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ detail, onClose, onVoid }) =>
             <Button
               variant="outline"
               onClick={() => {
+                if (!receiptData) return;
                 setIsPrinting(true);
-                setTimeout(() => {
-                  print();
-                  setTimeout(() => setIsPrinting(false), 1000);
-                }, 50);
+                print(receiptData);
+                setTimeout(() => setIsPrinting(false), 1500);
               }}
               leftIcon={isPrinting ? undefined : <Printer size={14} />}
               isLoading={isPrinting}

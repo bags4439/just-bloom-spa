@@ -62,7 +62,7 @@ export class ServiceContainer {
       transactionQueryRepo,
       dayClosureRepo,
       this.auditService,
-      otherIncomeRepo,
+      db,
     );
     this.transactionService = new TransactionService(
       transactionRepo,

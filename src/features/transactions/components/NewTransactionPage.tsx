@@ -1,11 +1,9 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, ChevronRight, Search, Printer } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useReactToPrint } from 'react-to-print';
-
 import { ROUTES } from '@/config/routes';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
@@ -13,7 +11,8 @@ import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Receipt, type ReceiptData } from '@/shared/components/layout/Receipt';
+import type { ReceiptData } from '@/shared/components/layout/Receipt';
+import { usePrint } from '@/shared/hooks/usePrintReceipt';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { useServices } from '@/core/ServiceContainerContext';
 import { useAuthStore, selectUser, selectSessionId } from '@/stores/authStore';
@@ -676,19 +675,8 @@ interface SuccessProps {
 const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
   const receiptConfig = useUiStore((s) => s.receiptConfig);
   const currentUser = useAuthStore(selectUser);
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const { print } = usePrint();
   const [isPrinting, setIsPrinting] = useState(false);
-
-  const print = useReactToPrint({
-    contentRef: receiptRef as React.RefObject<HTMLElement>,
-    documentTitle: 'Just Bloom Spa — Receipt',
-    pageStyle: `
-      @page { size: 80mm auto; margin: 0; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      }
-    `,
-  });
 
   const receiptData: ReceiptData = {
     transactionId: result.id,
@@ -711,11 +699,6 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
 
   return (
     <div className="max-w-md">
-      {/* Hidden receipt for printing */}
-      <div style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }}>
-        {receiptData && <Receipt ref={receiptRef} data={receiptData} />}
-      </div>
-
       <Card padding="none" className="overflow-hidden">
         <div className="bg-primary p-8 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
@@ -767,15 +750,14 @@ const SuccessScreen: React.FC<SuccessProps> = ({ result, onDone }) => {
             <Button
               variant="outline"
               onClick={() => {
+                if (!receiptData) return;
                 setIsPrinting(true);
-                setTimeout(() => {
-                  print();
-                  setTimeout(() => setIsPrinting(false), 1000);
-                }, 50);
+                print(receiptData);
+                setTimeout(() => setIsPrinting(false), 1500);
               }}
               leftIcon={isPrinting ? undefined : <Printer size={14} />}
               isLoading={isPrinting}
-              disabled={isPrinting || !receiptData}
+              disabled={isPrinting}
               className="flex-1 justify-center"
             >
               {isPrinting ? 'Preparing...' : 'Print receipt'}

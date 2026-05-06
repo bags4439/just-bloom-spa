@@ -153,3 +153,35 @@
     }
   }
 }
+
+/* ── Receipt print styles ──────────────────────────────────────── */
+@media print {
+  /* Hide everything on the page */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only the receipt */
+  #print-receipt-root {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #print-receipt-root * {
+    visibility: visible !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+
+/* Hidden by default, shown only during print */
+#print-receipt-root {
+  display: none;
+}

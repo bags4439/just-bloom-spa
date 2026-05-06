@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Download, TrendingUp, TrendingDown, DollarSign, Receipt } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { Download, TrendingUp, TrendingDown, DollarSign, Receipt, Clock } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -9,15 +9,18 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+import { useServices } from '@/core/ServiceContainerContext';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
 import { exportCsv } from '@/shared/utils/exportCsv';
 import { getDateRanges } from '@/shared/utils/dateRanges';
+import { formatDateTime } from '@/shared/utils/formatDate';
 import { cn } from '@/shared/utils/cn';
 import { useReport } from '../hooks/useReport';
 import type { DateRange } from '../types/report.types';
+import type { DayClosure } from '../types';
 
 // ─── Date range picker ────────────────────────────────────────────────────────
 
@@ -165,8 +168,38 @@ const CHANNEL_COLORS: Record<string, string> = {
 
 const ReportsPage: React.FC = () => {
   const ranges = getDateRanges();
-  const [dateRange, setDateRange] = useState<DateRange>(ranges.today!);
+  const [dateRange, setDateRange] = useState<DateRange>(ranges['today']!);
   const { state } = useReport(dateRange);
+  const { dashboardService } = useServices();
+  const [closures, setClosures] = useState<DayClosure[]>([]);
+  const [isLoadingClosures, setIsLoadingClosures] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingClosures(true);
+    void (async (): Promise<void> => {
+      try {
+        const data = await dashboardService.getClosureHistory(
+          dateRange.from,
+          dateRange.to,
+        );
+        if (!cancelled) {
+          setClosures(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setClosures([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingClosures(false);
+        }
+      }
+    })();
+    return (): void => {
+      cancelled = true;
+    };
+  }, [dashboardService, dateRange.from, dateRange.to]);
 
   const handleExportRevenue = useCallback((): void => {
     if (state.status !== 'success') return;
@@ -219,6 +252,22 @@ const ReportsPage: React.FC = () => {
       })),
     );
   }, [state, dateRange]);
+
+  const handleExportClosures = useCallback((): void => {
+    if (closures.length === 0) return;
+    exportCsv(
+      `day_closures_${dateRange.from}_${dateRange.to}`,
+      closures.map((c) => ({
+        Date: c.closeDate,
+        'Closed at': formatDateTime(c.closedAt),
+        'Closed by': c.closedByName || c.closedBy,
+        'Expected (GHS)': formatCurrencyCompact(c.expectedCashPesewas),
+        'Actual (GHS)': formatCurrencyCompact(c.actualCashPesewas),
+        'Discrepancy (GHS)': formatCurrencyCompact(c.discrepancyPesewas),
+        Note: c.notes ?? '',
+      })),
+    );
+  }, [closures, dateRange]);
 
   const chartData = useMemo(() => {
     if (state.status !== 'success') return [];
@@ -518,6 +567,151 @@ const ReportsPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Day Closures */}
+      <div className="mt-6 rounded-lg border border-border bg-white">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Clock size={15} className="text-text-tertiary" />
+            <h2 className="text-sm font-semibold text-text-primary">
+              Day closures
+            </h2>
+            <span className="rounded-full bg-cream px-2 py-0.5 text-[10px] font-semibold text-text-secondary">
+              {closures.length}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportClosures}
+            leftIcon={<Download size={12} />}
+            disabled={closures.length === 0}
+          >
+            Export CSV
+          </Button>
+        </div>
+
+        {isLoadingClosures ? (
+          <div className="flex justify-center py-10">
+            <Spinner size="md" />
+          </div>
+        ) : closures.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-sm font-medium text-text-primary">
+              No closures in this period
+            </p>
+            <p className="mt-1 text-sm text-text-secondary">
+              Close the day from the dashboard to create a record.
+            </p>
+          </div>
+        ) : (
+          <>
+            {(() => {
+              const totalDiscrepancy = closures.reduce(
+                (s, c) => s + c.discrepancyPesewas,
+                0,
+              );
+              const shortages = closures.filter(
+                (c) => c.discrepancyPesewas < 0,
+              ).length;
+              const surpluses = closures.filter(
+                (c) => c.discrepancyPesewas > 0,
+              ).length;
+              const exact = closures.filter(
+                (c) => c.discrepancyPesewas === 0,
+              ).length;
+              return (
+                <div className="flex gap-4 border-b border-border bg-cream px-6 py-3">
+                  <div className="text-xs text-text-secondary">
+                    <span className="font-semibold text-green-700">{exact}</span> exact
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    <span className="font-semibold text-blue-700">{surpluses}</span> surplus
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    <span className="font-semibold text-red-700">{shortages}</span> shortage
+                  </div>
+                  <div className="ml-auto text-xs text-text-secondary">
+                    Net discrepancy:{' '}
+                    <span
+                      className={cn(
+                        'font-semibold',
+                        totalDiscrepancy === 0
+                          ? 'text-green-700'
+                          : totalDiscrepancy > 0
+                            ? 'text-blue-700'
+                            : 'text-red-700',
+                      )}
+                    >
+                      {totalDiscrepancy > 0 ? '+' : ''}
+                      {formatCurrencyCompact(totalDiscrepancy)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-cream">
+                    {[
+                      'Date', 'Closed at', 'Closed by',
+                      'Expected', 'Actual', 'Discrepancy', 'Note',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-tertiary"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {closures.map((c) => (
+                    <tr key={c.id} className="border-t border-border">
+                      <td className="px-5 py-3 text-sm font-medium text-text-primary">
+                        {c.closeDate}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-text-secondary whitespace-nowrap">
+                        {formatDateTime(c.closedAt)}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-text-secondary">
+                        {c.closedByName || c.closedBy}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-text-primary">
+                        {formatCurrencyCompact(c.expectedCashPesewas)}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-text-primary">
+                        {formatCurrencyCompact(c.actualCashPesewas)}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                            c.discrepancyPesewas === 0
+                              ? 'bg-green-50 text-green-700'
+                              : c.discrepancyPesewas > 0
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-red-50 text-red-700',
+                          )}
+                        >
+                          {c.discrepancyPesewas > 0 ? '+' : ''}
+                          {formatCurrencyCompact(c.discrepancyPesewas)}
+                        </span>
+                      </td>
+                      <td className="max-w-[160px] truncate px-5 py-3 text-sm text-text-secondary">
+                        {c.notes ?? '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

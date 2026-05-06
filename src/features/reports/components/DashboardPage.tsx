@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Receipt, Star, Wallet, Lock } from 'lucide-react';
+import { TrendingUp, Receipt, Star, Wallet, Lock, AlertTriangle } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -15,6 +15,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { formatCurrencyCompact } from '@/shared/utils/formatCurrency';
+import { formatDateTime } from '@/shared/utils/formatDate';
 import { useAuthStore, selectUser } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { usePermission } from '@/features/auth/hooks/usePermission';
@@ -115,6 +116,9 @@ const DashboardPage: React.FC = () => {
   }
 
   const stats = state.data;
+  const periodSub = stats.unclosedSince
+    ? `since ${formatDateTime(stats.unclosedSince)}`
+    : 'all time';
 
   return (
     <div className="p-9 max-w-[1200px]">
@@ -127,10 +131,9 @@ const DashboardPage: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => setIsCloseDayOpen(true)}
-                disabled={stats.isDayClosed}
                 leftIcon={<Lock size={14} />}
               >
-                {stats.isDayClosed ? 'Day closed' : 'Close day'}
+                Close day
               </Button>
             )}
             <Button
@@ -156,33 +159,61 @@ const DashboardPage: React.FC = () => {
         }
       />
 
+      {stats.hasUnclosedTransactions && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <AlertTriangle
+            size={18}
+            className="mt-0.5 shrink-0 text-amber-600"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-amber-800">
+              Unclosed transactions
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              {stats.unclosedSince
+                ? `Transactions recorded since last closure on ${formatDateTime(stats.unclosedSince)}. Close when ready.`
+                : 'No day has been closed yet. Close when ready.'}
+            </p>
+          </div>
+          {canCloseDay && (
+            <Button
+              size="sm"
+              onClick={() => setIsCloseDayOpen(true)}
+              className="shrink-0"
+            >
+              Close now
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Metric cards */}
       <div className="mb-6 flex gap-4">
         <MetricCard
-          label="Today's revenue"
+          label="Revenue"
           value={formatCurrencyCompact(stats.totalRevenuePesewas)}
-          sub={`${stats.transactionCount} transaction${stats.transactionCount !== 1 ? 's' : ''}`}
+          sub={`${stats.transactionCount} sale${stats.transactionCount !== 1 ? 's' : ''} · ${periodSub}`}
           icon={TrendingUp}
           iconColor="#1D4D35"
         />
         <MetricCard
-          label="Transactions"
+          label="Sales count"
           value={String(stats.transactionCount)}
-          sub="recorded today"
+          sub={periodSub}
           icon={Receipt}
           iconColor="#C4962A"
         />
         <MetricCard
           label="Top service"
           value={stats.topServiceName ?? '—'}
-          sub="most popular today"
+          sub={periodSub}
           icon={Star}
           iconColor="#7C3AED"
         />
         <MetricCard
           label="Cash in drawer"
           value={formatCurrencyCompact(stats.cashInDrawerPesewas)}
-          sub="from cash sales"
+          sub={periodSub}
           icon={Wallet}
           iconColor="#EA580C"
         />
@@ -257,8 +288,7 @@ const DashboardPage: React.FC = () => {
           isOpen={isCloseDayOpen}
           onClose={() => setIsCloseDayOpen(false)}
           onSuccess={handleCloseDaySuccess}
-          expectedCashPesewas={stats.expectedCashPesewas}
-          closeDate={stats.date}
+          stats={stats}
         />
       )}
     </div>

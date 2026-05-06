@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -139,7 +139,7 @@ export const SCHEMA_SQL = `
 
   CREATE TABLE IF NOT EXISTS day_closures (
     id TEXT PRIMARY KEY,
-    close_date TEXT NOT NULL UNIQUE,
+    close_date TEXT NOT NULL,
     closed_by TEXT NOT NULL REFERENCES users(id),
     expected_cash_pesewas INTEGER NOT NULL,
     actual_cash_pesewas INTEGER NOT NULL,
@@ -196,5 +196,23 @@ export const MIGRATIONS: Record<number, string> = {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_other_income_ts ON other_income(ts);
+  `,
+  3: `
+    CREATE TABLE IF NOT EXISTS day_closures_new (
+      id TEXT PRIMARY KEY,
+      close_date TEXT NOT NULL,
+      closed_by TEXT NOT NULL REFERENCES users(id),
+      expected_cash_pesewas INTEGER NOT NULL,
+      actual_cash_pesewas INTEGER NOT NULL,
+      discrepancy_pesewas INTEGER NOT NULL,
+      notes TEXT,
+      closed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT INTO day_closures_new
+      SELECT id, close_date, closed_by, expected_cash_pesewas,
+             actual_cash_pesewas, discrepancy_pesewas, notes, closed_at
+      FROM day_closures;
+    DROP TABLE IF EXISTS day_closures;
+    ALTER TABLE day_closures_new RENAME TO day_closures
   `,
 };

@@ -3,6 +3,9 @@ import type { Database, SqlValue } from '@/shared/types';
 import type { DayClosure, CreateDayClosureDto } from '../types';
 import type { IDayClosureRepository } from './IDayClosureRepository';
 
+const COLUMNS =
+  'id, close_date, closed_by, expected_cash_pesewas, actual_cash_pesewas, discrepancy_pesewas, notes, closed_at';
+
 export class SqliteDayClosureRepository
   extends BaseRepository
   implements IDayClosureRepository
@@ -26,13 +29,32 @@ export class SqliteDayClosureRepository
 
   async findByDate(date: string): Promise<DayClosure | null> {
     const row = await this.selectOne(
-      `SELECT id, close_date, closed_by, expected_cash_pesewas,
-              actual_cash_pesewas, discrepancy_pesewas, notes, closed_at
-       FROM day_closures
-       WHERE close_date = ?`,
+      `SELECT ${COLUMNS} FROM day_closures
+       WHERE close_date = ?
+       ORDER BY closed_at DESC
+       LIMIT 1`,
       [date],
     );
     return row ? this.mapRow(row) : null;
+  }
+
+  async findMostRecent(): Promise<DayClosure | null> {
+    const row = await this.selectOne(
+      `SELECT ${COLUMNS} FROM day_closures
+       ORDER BY closed_at DESC
+       LIMIT 1`,
+    );
+    return row ? this.mapRow(row) : null;
+  }
+
+  async findAll(limit = 50): Promise<DayClosure[]> {
+    const rows = await this.selectAll(
+      `SELECT ${COLUMNS} FROM day_closures
+       ORDER BY closed_at DESC
+       LIMIT ?`,
+      [limit],
+    );
+    return rows.map((r) => this.mapRow(r));
   }
 
   async create(dto: CreateDayClosureDto): Promise<DayClosure> {
@@ -54,8 +76,11 @@ export class SqliteDayClosureRepository
         now,
       ],
     );
-    const result = await this.findByDate(dto.closeDate);
-    if (!result) throw new Error('Failed to create day closure');
-    return result;
+    const row = await this.selectOne(
+      `SELECT ${COLUMNS} FROM day_closures WHERE id = ?`,
+      [id],
+    );
+    if (!row) throw new Error('Failed to create day closure');
+    return this.mapRow(row);
   }
 }
