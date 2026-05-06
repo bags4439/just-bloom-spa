@@ -32,7 +32,7 @@ export const Receipt = React.forwardRef<HTMLDivElement, Props>(
     <div
       ref={ref}
       style={{
-        width: '80mm',
+        width: '75mm',
         boxSizing: 'border-box',
         fontFamily: "'DM Sans', Arial, sans-serif",
         fontSize: '12px',
